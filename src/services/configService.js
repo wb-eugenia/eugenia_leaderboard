@@ -149,6 +149,46 @@ export function deleteAutomationRule(id) {
   return config;
 }
 
+/**
+ * Obtient la configuration des récompenses
+ */
+export function getRewardsConfig() {
+  const config = loadConfig();
+  return config.rewards || [];
+}
+
+/**
+ * Met à jour la configuration des récompenses
+ */
+export function updateRewardsConfig(rewards) {
+  const config = loadConfig();
+  config.rewards = rewards;
+  saveConfig(config);
+  return config;
+}
+
+/**
+ * Obtient la configuration globale (cagnotte, deadline)
+ */
+export function getGlobalConfig() {
+  const config = loadConfig();
+  return {
+    totalPrizePool: config.totalPrizePool || '+500€',
+    deadline: config.deadline || '31 janvier 2026'
+  };
+}
+
+/**
+ * Met à jour la configuration globale
+ */
+export function updateGlobalConfig(globalConfig) {
+  const config = loadConfig();
+  config.totalPrizePool = globalConfig.totalPrizePool || config.totalPrizePool;
+  config.deadline = globalConfig.deadline || config.deadline;
+  saveConfig(config);
+  return config;
+}
+
 export default {
   loadConfig,
   saveConfig,
@@ -162,6 +202,10 @@ export default {
   getAutomationRules,
   saveAutomationRules,
   saveAutomationRule,
-  deleteAutomationRule
+  deleteAutomationRule,
+  getRewardsConfig,
+  updateRewardsConfig,
+  getGlobalConfig,
+  updateGlobalConfig
 };
 

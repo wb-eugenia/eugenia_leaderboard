@@ -11,6 +11,8 @@ import ValidationQueue from './components/admin/ValidationQueue';
 import ActionTypeEditor from './components/admin/ActionTypeEditor';
 import LeaderboardConfig from './components/admin/LeaderboardConfig';
 import AutomationConfig from './components/admin/AutomationConfig';
+import RewardsConfig from './components/admin/RewardsConfig';
+import LandingTextsConfig from './components/admin/LandingTextsConfig';
 
 function App() {
   return (
@@ -31,6 +33,8 @@ function App() {
           <Route path="actions" element={<ActionTypeEditor />} />
           <Route path="leaderboard" element={<LeaderboardConfig />} />
           <Route path="automations" element={<AutomationConfig />} />
+          <Route path="rewards" element={<RewardsConfig />} />
+          <Route path="texts" element={<LandingTextsConfig />} />
         </Route>
         
         {/* Route guide admin protégée */}

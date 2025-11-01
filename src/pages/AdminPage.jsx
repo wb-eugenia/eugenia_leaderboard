@@ -71,6 +71,18 @@ export default function AdminPage() {
               🤖 Automatisations
             </Link>
             <Link 
+              to="/admin/rewards" 
+              className="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              💰 Récompenses
+            </Link>
+            <Link 
+              to="/admin/texts" 
+              className="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              📝 Textes Landing
+            </Link>
+            <Link 
               to="/admin/guide" 
               className="px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors text-eugenia-yellow font-semibold"
             >

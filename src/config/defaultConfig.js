@@ -4,6 +4,59 @@ export const defaultConfig = {
   appName: "🏆 Eugenia Challenge",
   appTagline: "Défie-toi, accumule des points, deviens champion du campus !",
   
+  // Configuration des récompenses
+  totalPrizePool: "+500€",
+  deadline: "31 janvier 2026",
+  
+  // Textes de la landing page configurables
+  landingTexts: {
+    heroTitle: "🏆 EUGENIA CHALLENGE 2025 🏆",
+    heroSubtitle: "Gagne des points, monte dans le classement,\ndeviens le champion du campus !",
+    prizeBadge: "+500€ DE CAGNOTTE\naio gagner ce semestre !",
+    sectionRewardsTitle: "💰 Récompenses à gagner 💰",
+    sectionHowItWorksTitle: "Comment participer ?",
+    step1Title: "Choisis une action",
+    step1Desc: "Post LinkedIn, JPO, Hackathon, Association...",
+    step2Title: "Soumets ta preuve",
+    step2Desc: "Lien, date ou photo",
+    step3Title: "Gagne des points !",
+    step3Desc: "Monte dans le top 3 et gagne !",
+    sectionActionsTitle: "Comment gagner des points ?",
+    sectionLeaderboardTitle: "🏆 Classement en direct - Course aux {amount}",
+    sectionLeaderboardSubtitle: "💰 Cagnotte : {amount} | Fin : {deadline}",
+    sectionFinalCTATitle: "💰 La course aux {amount} est lancée ! 💰",
+    sectionFinalCTADesc: "Soumets ta première action maintenant et\ncommence à grimper dans le classement"
+  },
+  rewards: [
+    {
+      id: 1,
+      rank: 1,
+      position: "1ère place",
+      emoji: "🥇",
+      amount: "250€",
+      benefits: ["Trophée", "Visibilité"],
+      gradient: "linear-gradient(135deg, #FFD700, #FFA500)"
+    },
+    {
+      id: 2,
+      rank: 2,
+      position: "2ème place",
+      emoji: "🥈",
+      amount: "150€",
+      benefits: ["Goodies exclusifs"],
+      gradient: "linear-gradient(135deg, #C0C0C0, #A8A8A8)"
+    },
+    {
+      id: 3,
+      rank: 3,
+      position: "3ème place",
+      emoji: "🥉",
+      amount: "100€",
+      benefits: ["Goodies"],
+      gradient: "linear-gradient(135deg, #CD7F32, #A0522D)"
+    }
+  ],
+  
   // Configuration des types d'actions
   actionTypes: [
     {

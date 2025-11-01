@@ -114,6 +114,41 @@ function submitAction(data) {
       return { success: false, error: 'Actions sheet not found' };
     }
     
+    // Check for duplicates
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+    const rows = values.slice(1); // Skip header
+    
+    // Look for existing pending or validated action with same email and type
+    const isDuplicate = rows.some(row => {
+      const existingEmail = row[1];
+      const existingType = row[2];
+      const existingData = parseJSON(row[3] || '{}');
+      const existingStatus = row[4];
+      
+      // Check if same email, same type, and same data
+      const sameEmail = existingEmail && existingEmail.toString().toLowerCase() === data.email.toLowerCase();
+      const sameType = existingType === data.type;
+      
+      // For date-based actions (events), check if it's the same date
+      let sameData = false;
+      if (data.data && data.data.date && existingData.date) {
+        sameData = data.data.date === existingData.date;
+      }
+      
+      return sameEmail && sameType && sameData && 
+             (existingStatus.toString().toLowerCase() === 'pending' || 
+              existingStatus.toString().toLowerCase() === 'validated');
+    });
+    
+    if (isDuplicate) {
+      return { 
+        success: false, 
+        error: 'duplicate',
+        message: 'Cette action a déjà été soumise. Veuillez soumettre une action différente.'
+      };
+    }
+    
     const nextRow = sheet.getLastRow() + 1;
     const id = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     

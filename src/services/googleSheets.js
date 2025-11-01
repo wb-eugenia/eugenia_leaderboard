@@ -59,8 +59,35 @@ export async function submitAction(actionData) {
       }
     }
     
-    // Fallback localStorage
+    // Fallback localStorage - Check for duplicates
     const actions = getStoredActions();
+    
+    // Check if duplicate exists
+    const isDuplicate = actions.some(existing => {
+      const sameEmail = existing.email && existing.email.toLowerCase() === actionData.email.toLowerCase();
+      const sameType = existing.type === actionData.type;
+      const sameData = existing.data && actionData.data;
+      
+      // For date-based actions, check if same date
+      let sameDate = false;
+      if (actionData.data && actionData.data.date && existing.data && existing.data.date) {
+        sameDate = actionData.data.date === existing.data.date;
+      }
+      
+      // Check if pending or validated
+      const activeStatus = existing.status === 'pending' || existing.status === 'validated';
+      
+      return sameEmail && sameType && sameDate && activeStatus;
+    });
+    
+    if (isDuplicate) {
+      return {
+        success: false,
+        error: 'duplicate',
+        message: 'Cette action a déjà été soumise. Veuillez soumettre une action différente.'
+      };
+    }
+    
     const newAction = {
       id: generateId(),
       email: actionData.email,

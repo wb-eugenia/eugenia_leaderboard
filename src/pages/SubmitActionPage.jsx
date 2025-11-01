@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActionTypes } from '../services/configService';
 import { submitAction } from '../services/googleSheets';
+import Header from '../components/shared/Header';
 
 export default function SubmitActionPage() {
   const navigate = useNavigate();
@@ -65,7 +66,12 @@ export default function SubmitActionPage() {
           navigate('/leaderboard');
         }, 2000);
       } else {
-        setMessage({ type: 'error', text: 'Erreur lors de la soumission. Veuillez réessayer.' });
+        // Check if it's a duplicate error
+        if (result.error === 'duplicate') {
+          setMessage({ type: 'error', text: result.message || 'Cette action a déjà été soumise. Veuillez soumettre une action différente.' });
+        } else {
+          setMessage({ type: 'error', text: 'Erreur lors de la soumission. Veuillez réessayer.' });
+        }
       }
     } catch (error) {
       console.error('Error submitting:', error);
@@ -78,8 +84,10 @@ export default function SubmitActionPage() {
   const selectedActionType = actionTypes.find(t => t.id === selectedType);
 
   return (
-    <div className="min-h-screen py-12 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-eugenia-burgundy via-eugenia-pink to-eugenia-burgundy">
+      <Header />
+      <div className="py-12 px-4">
+        <div className="max-w-2xl mx-auto">
         <h2 className="text-4xl font-bold text-center text-white mb-8">
           ➕ Soumettre une action
         </h2>
@@ -167,6 +175,7 @@ export default function SubmitActionPage() {
             {submitting ? 'Envoi en cours...' : 'Soumettre l\'action'}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

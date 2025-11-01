@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getActionsToValidate, getLeaderboard } from '../services/googleSheets';
-import { resetToRealStudents } from '../utils/resetData';
+import { getActionsToValidate, getLeaderboard, getAllActions } from '../services/googleSheets';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -10,9 +9,12 @@ export default function AdminDashboard() {
     totalUsers: 0,
     totalPoints: 0
   });
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
 
   useEffect(() => {
     loadStats();
+    loadRecentActivity();
   }, []);
 
   const loadStats = async () => {
@@ -33,6 +35,52 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error loading stats:', error);
     }
+  };
+
+  const loadRecentActivity = async () => {
+    try {
+      setLoadingActivity(true);
+      const allActions = await getAllActions();
+      
+      // Trier par date et prendre les 5 plus récentes
+      const sorted = allActions.sort((a, b) => {
+        const dateA = new Date(a.date || a.validatedAt || 0);
+        const dateB = new Date(b.date || b.validatedAt || 0);
+        return dateB - dateA;
+      }).slice(0, 5);
+      
+      setRecentActivity(sorted);
+    } catch (error) {
+      console.error('Error loading activity:', error);
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Il y a quelques instants';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    if (diffHours < 24) return `Il y a ${diffHours}h`;
+    return `Il y a ${diffDays}j`;
+  };
+
+  const getActionTypeLabel = (type) => {
+    const actionTypes = ['linkedin-post', 'jpo-participation', 'hackathon-victory', 'association-create'];
+    const labels = {
+      'linkedin-post': '📱 Post LinkedIn',
+      'jpo-participation': '🎓 JPO',
+      'hackathon-victory': '🏆 Hackathon',
+      'association-create': '🤝 Création Asso'
+    };
+    return labels[type] || type || '📋 Action';
   };
 
   return (
@@ -124,17 +172,6 @@ export default function AdminDashboard() {
             🏆 Voir le classement
           </Link>
         </div>
-        <div className="mt-4 pt-4 border-t">
-          <button
-            onClick={resetToRealStudents}
-            className="btn btn-outline w-full text-sm"
-          >
-            🔄 Réinitialiser avec les vrais étudiants Eugenia
-          </button>
-          <p className="text-xs text-gray-500 mt-2">
-            (35 étudiants B1 + B2 avec 0 points)
-          </p>
-        </div>
       </div>
 
       {/* Recent Activity */}
@@ -142,11 +179,47 @@ export default function AdminDashboard() {
         <h3 className="text-xl font-bold text-gray-900 mb-4">
           Activité récente
         </h3>
-        <div className="space-y-2">
+        {loadingActivity ? (
+          <div className="text-gray-500 text-center py-8">
+            <div className="spinner"></div>
+            Chargement...
+          </div>
+        ) : recentActivity.length === 0 ? (
           <div className="text-gray-500 text-center py-8">
             Aucune activité récente
           </div>
-        </div>
+        ) : (
+          <div className="space-y-3">
+            {recentActivity.map((action) => (
+              <div
+                key={action.id}
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="text-2xl">{action.status === 'validated' ? '✅' : action.status === 'rejected' ? '❌' : '⏳'}</div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900">
+                      {getActionTypeLabel(action.type)}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {action.email || 'Email inconnu'}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-gray-500">
+                    {formatTimeAgo(action.date || action.validatedAt)}
+                  </div>
+                  {action.status === 'validated' && action.points > 0 && (
+                    <div className="text-sm font-bold text-green-600">
+                      +{action.points} pts
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

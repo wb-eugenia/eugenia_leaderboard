@@ -154,36 +154,13 @@ export default function AutomationConfig() {
         <h2 className="text-2xl font-bold text-gray-900">
           🤖 Configuration des Automatisations
         </h2>
-        <button onClick={handleAdd} className="btn btn-primary">
-          ➕ Nouvelle automatisation
-        </button>
-      </div>
-
-      {/* Description */}
-      <div className="card bg-blue-50 border-blue-200">
-        <h3 className="font-bold mb-3">📖 Comment ça marche ?</h3>
-        <p className="text-gray-700 mb-4">
-          Les automatisations vérifient en <strong>2 étapes obligatoires</strong> : 
-          1️⃣ D'abord identifier l'étudiant (nom, prénom, email)
-          2️⃣ Ensuite vérifier un champ du formulaire (date, lieu, événement...)
-        </p>
-        
-        <div className="bg-white rounded-lg p-4 border-2 border-blue-300 space-y-3">
-          <h4 className="font-bold text-sm mb-2">🎯 Exemple : Sheet "Événements"</h4>
-          <div className="text-xs font-mono bg-gray-900 text-green-400 p-3 rounded overflow-x-auto">
-            {`| A (Event)           | B (Dates)    | C (Lieux)    | D (Amb 1)  | E (Amb 2) | F (Amb 3) | G (Amb 4) |
-|-------------------|--------------|--------------|------------|-----------|-----------|-----------|
-| Vainqueur QVEMA   | 2024-09-13   | Campus       | Bouzidane  | Ansellem  | Ballonad  |           |
-| Vainqueur leads   | 2024-09-21   | Paris        |            |           |           |           |`}
-          </div>
-          <div className="space-y-2 text-xs text-gray-700">
-            <p className="font-semibold">Config automatisation :</p>
-            <p>1️⃣ <strong>ID étudiant</strong> : Type = "Nom", Colonnes = <code>D,E,F,G</code> (Ambassadeurs)</p>
-            <p>2️⃣ <strong>Champ formulaire</strong> : Date = Colonne <code>B</code></p>
-            <p className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
-              🎉 <strong>Résultat</strong> : "Bouzidane" trouvé dans D ET date OK → validé !
-            </p>
-          </div>
+        <div className="flex gap-3">
+          <button onClick={loadData} className="btn btn-secondary">
+            🔄 Actualiser
+          </button>
+          <button onClick={handleAdd} className="btn btn-primary">
+            ➕ Nouvelle automatisation
+          </button>
         </div>
       </div>
 
@@ -467,14 +444,6 @@ export default function AutomationConfig() {
         </div>
       )}
 
-      {/* TODO: Instruction pour tester */}
-      <div className="card bg-yellow-50 border-yellow-200">
-        <h3 className="font-bold mb-2">⚠️ Note technique</h3>
-        <p className="text-sm text-gray-700">
-          La connexion aux Google Sheets externes nécessite l'implémentation de l'API Google Sheets.
-          Actuellement, cette fonctionnalité utilise des données mockées pour le développement.
-        </p>
-      </div>
     </div>
   );
 }
