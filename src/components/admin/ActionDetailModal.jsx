@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getActionTypes } from '../../services/configService';
 import { processValidation } from '../../services/validationService';
 
@@ -7,9 +7,22 @@ export default function ActionDetailModal({ action, onClose, onActionComplete })
   const [comment, setComment] = useState('');
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
-  
-  const actionTypes = getActionTypes();
-  const actionType = actionTypes.find(t => t.id === action.type);
+  const [actionTypes, setActionTypes] = useState([]);
+  const [actionType, setActionType] = useState(null);
+
+  useEffect(() => {
+    loadActionTypes();
+  }, []);
+
+  useEffect(() => {
+    const type = actionTypes.find(t => t.id === action.type);
+    setActionType(type);
+  }, [actionTypes, action.type]);
+
+  const loadActionTypes = async () => {
+    const types = await getActionTypes();
+    setActionTypes(types);
+  };
 
   const emailParts = action.email.split('@')[0].split('.');
   const firstName = emailParts[0] || 'User';

@@ -14,7 +14,7 @@ export default function HomePage() {
   });
   const [topThree, setTopThree] = useState([]);
   const [loading, setLoading] = useState(true);
-  const actionTypes = getActionTypes();
+  const [actionTypes, setActionTypes] = useState([]);
 
   useEffect(() => {
     loadData();
@@ -23,8 +23,12 @@ export default function HomePage() {
   const loadData = async () => {
     try {
       // Load config
-      const loadedConfig = loadConfig();
+      const loadedConfig = await loadConfig();
       setConfig(loadedConfig);
+
+      // Load action types
+      const types = await getActionTypes();
+      setActionTypes(types);
 
       // Load leaderboard for stats and top 3
       const leaderboard = await getLeaderboard();

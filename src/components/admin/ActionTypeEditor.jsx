@@ -10,8 +10,8 @@ export default function ActionTypeEditor() {
     loadActionTypes();
   }, []);
 
-  const loadActionTypes = () => {
-    const types = getActionTypes();
+  const loadActionTypes = async () => {
+    const types = await getActionTypes();
     setActionTypes(types);
   };
 
@@ -33,22 +33,22 @@ export default function ActionTypeEditor() {
     setShowForm(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingType.label || !editingType.id) {
       alert('Veuillez remplir tous les champs requis');
       return;
     }
     
-    saveActionType(editingType);
-    loadActionTypes();
+    await saveActionType(editingType);
+    await loadActionTypes();
     setShowForm(false);
     setEditingType(null);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer ce type d\'action ?')) {
-      deleteActionType(id);
-      loadActionTypes();
+      await deleteActionType(id);
+      await loadActionTypes();
     }
   };
 

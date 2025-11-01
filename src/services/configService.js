@@ -2,18 +2,62 @@
 import { defaultConfig } from '../config/defaultConfig.js';
 
 const CONFIG_STORAGE_KEY = 'eugeniaConfig';
+const APP_SCRIPT_URL = import.meta.env.VITE_APP_SCRIPT_URL;
+const USE_APPS_SCRIPT = !!APP_SCRIPT_URL;
 
 /**
- * Charge la configuration depuis le stockage local
+ * Charge la configuration depuis Google Sheets ou localStorage (fallback)
  * Retourne la config par défaut si aucune n'est trouvée
  */
-export function loadConfig() {
+export async function loadConfig() {
   try {
+    // Try Apps Script first
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(`${APP_SCRIPT_URL}?action=getConfig`);
+        const text = await response.text();
+        const googleConfig = JSON.parse(text);
+        
+        if (googleConfig && !googleConfig.error) {
+          // Merge profond avec la config par défaut
+          const merged = { ...defaultConfig, ...googleConfig };
+          
+          // Merge profond pour les tableaux importants
+          if (googleConfig.actionTypes && googleConfig.actionTypes.length > 0) {
+            merged.actionTypes = googleConfig.actionTypes;
+          }
+          if (googleConfig.rewards && googleConfig.rewards.length > 0) {
+            merged.rewards = googleConfig.rewards;
+          }
+          if (googleConfig.automations && googleConfig.automations.length > 0) {
+            merged.automations = googleConfig.automations;
+          }
+          
+          return merged;
+        }
+      } catch (error) {
+        console.warn('Apps Script fetch failed, using localStorage fallback:', error);
+      }
+    }
+    
+    // Fallback to localStorage
     const storedConfig = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (storedConfig) {
       const parsed = JSON.parse(storedConfig);
-      // Merge avec la config par défaut pour éviter les champs manquants
-      return { ...defaultConfig, ...parsed };
+      // Merge profond avec la config par défaut
+      const merged = { ...defaultConfig, ...parsed };
+      
+      if (parsed.actionTypes && parsed.actionTypes.length > 0) {
+        merged.actionTypes = parsed.actionTypes;
+      }
+      if (parsed.rewards && parsed.rewards.length > 0) {
+        merged.rewards = parsed.rewards;
+      }
+      if (parsed.automations && parsed.automations.length > 0) {
+        merged.automations = parsed.automations;
+      }
+      
+      return merged;
     }
   } catch (error) {
     console.error('Error loading config:', error);
@@ -23,10 +67,33 @@ export function loadConfig() {
 }
 
 /**
- * Sauvegarde la configuration dans le stockage local
+ * Sauvegarde la configuration dans Google Sheets ou localStorage (fallback)
  */
-export function saveConfig(config) {
+export async function saveConfig(config) {
   try {
+    // Try Apps Script first
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(APP_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'saveConfig',
+            config: config
+          })
+        });
+        const text = await response.text();
+        const result = JSON.parse(text);
+        
+        if (result.success) {
+          return true;
+        }
+      } catch (error) {
+        console.warn('Apps Script save failed, using localStorage fallback:', error);
+      }
+    }
+    
+    // Fallback to localStorage
     localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
     return true;
   } catch (error) {
@@ -46,24 +113,24 @@ export function resetConfig() {
 /**
  * Obtient les types d'actions configurés
  */
-export function getActionTypes() {
-  const config = loadConfig();
+export async function getActionTypes() {
+  const config = await loadConfig();
   return config.actionTypes || [];
 }
 
 /**
  * Obtient un type d'action par son ID
  */
-export function getActionTypeById(id) {
-  const config = loadConfig();
+export async function getActionTypeById(id) {
+  const config = await loadConfig();
   return config.actionTypes.find(type => type.id === id);
 }
 
 /**
  * Ajoute ou met à jour un type d'action
  */
-export function saveActionType(actionType) {
-  const config = loadConfig();
+export async function saveActionType(actionType) {
+  const config = await loadConfig();
   const existingIndex = config.actionTypes.findIndex(t => t.id === actionType.id);
   
   if (existingIndex >= 0) {
@@ -72,61 +139,61 @@ export function saveActionType(actionType) {
     config.actionTypes.push(actionType);
   }
   
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Supprime un type d'action
  */
-export function deleteActionType(id) {
-  const config = loadConfig();
+export async function deleteActionType(id) {
+  const config = await loadConfig();
   config.actionTypes = config.actionTypes.filter(t => t.id !== id);
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Obtient la configuration du leaderboard
  */
-export function getLeaderboardConfig() {
-  const config = loadConfig();
+export async function getLeaderboardConfig() {
+  const config = await loadConfig();
   return config.leaderboard || {};
 }
 
 /**
  * Met à jour la configuration du leaderboard
  */
-export function updateLeaderboardConfig(leaderboardConfig) {
-  const config = loadConfig();
+export async function updateLeaderboardConfig(leaderboardConfig) {
+  const config = await loadConfig();
   config.leaderboard = { ...config.leaderboard, ...leaderboardConfig };
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Obtient les règles d'automatisation
  */
-export function getAutomationRules() {
-  const config = loadConfig();
+export async function getAutomationRules() {
+  const config = await loadConfig();
   return config.automations || [];
 }
 
 /**
  * Sauvegarde les règles d'automatisation
  */
-export function saveAutomationRules(automations) {
-  const config = loadConfig();
+export async function saveAutomationRules(automations) {
+  const config = await loadConfig();
   config.automations = automations;
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Ajoute ou met à jour une règle d'automatisation
  */
-export function saveAutomationRule(automation) {
-  const config = loadConfig();
+export async function saveAutomationRule(automation) {
+  const config = await loadConfig();
   const existingIndex = config.automations.findIndex(a => a.id === automation.id);
   
   if (existingIndex >= 0) {
@@ -135,43 +202,43 @@ export function saveAutomationRule(automation) {
     config.automations.push(automation);
   }
   
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Supprime une règle d'automatisation
  */
-export function deleteAutomationRule(id) {
-  const config = loadConfig();
+export async function deleteAutomationRule(id) {
+  const config = await loadConfig();
   config.automations = config.automations.filter(a => a.id !== id);
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Obtient la configuration des récompenses
  */
-export function getRewardsConfig() {
-  const config = loadConfig();
+export async function getRewardsConfig() {
+  const config = await loadConfig();
   return config.rewards || [];
 }
 
 /**
  * Met à jour la configuration des récompenses
  */
-export function updateRewardsConfig(rewards) {
-  const config = loadConfig();
+export async function updateRewardsConfig(rewards) {
+  const config = await loadConfig();
   config.rewards = rewards;
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 
 /**
  * Obtient la configuration globale (cagnotte, deadline)
  */
-export function getGlobalConfig() {
-  const config = loadConfig();
+export async function getGlobalConfig() {
+  const config = await loadConfig();
   return {
     totalPrizePool: config.totalPrizePool || '+500€',
     deadline: config.deadline || '31 janvier 2026'
@@ -181,11 +248,11 @@ export function getGlobalConfig() {
 /**
  * Met à jour la configuration globale
  */
-export function updateGlobalConfig(globalConfig) {
-  const config = loadConfig();
+export async function updateGlobalConfig(globalConfig) {
+  const config = await loadConfig();
   config.totalPrizePool = globalConfig.totalPrizePool || config.totalPrizePool;
   config.deadline = globalConfig.deadline || config.deadline;
-  saveConfig(config);
+  await saveConfig(config);
   return config;
 }
 

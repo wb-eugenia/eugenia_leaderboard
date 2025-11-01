@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getActionTypes } from '../services/configService';
 import { submitAction } from '../services/googleSheets';
@@ -11,8 +11,16 @@ export default function SubmitActionPage() {
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [actionTypes, setActionTypes] = useState([]);
   
-  const actionTypes = getActionTypes();
+  useEffect(() => {
+    loadActionTypes();
+  }, []);
+
+  const loadActionTypes = async () => {
+    const types = await getActionTypes();
+    setActionTypes(types);
+  };
 
   const handleTypeChange = (e) => {
     setSelectedType(e.target.value);

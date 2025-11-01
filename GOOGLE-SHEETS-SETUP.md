@@ -1,189 +1,189 @@
-# 📊 Configuration Google Sheets - Production Complète
+# 📊 Configuration Google Sheets
 
-## 🎯 Objectif
+## 🎯 Vue d'ensemble
 
-Connecter votre application React à une Google Sheet pour persister les données.
+**Toutes les données admin sont stockées dans Google Sheets !**
 
----
-
-## 📋 Étapes
-
-### 1. Créer votre Google Sheet
-
-1. Allez sur https://sheets.google.com
-2. Créez un nouveau **Google Sheet**
-3. Nommez-le : `Eugenia Challenge Data`
-4. Notez l'**ID du Sheet** dans l'URL :
-   ```
-   https://docs.google.com/spreadsheets/d/[ID_ICI]/edit
-   ```
-
-### 2. Créer les onglets
-
-Votre Sheet doit avoir **2 onglets** avec ces structures :
-
-#### Onglet `leaderboard`
-
-**En-têtes (ligne 1)** :
-| A | B | C | D | E | F | G |
-|---|---|---|---|---|---|---|
-| firstName | lastName | classe | email | totalPoints | actionsCount | lastUpdate |
-
-**Données (à partir ligne 2)** :
-| firstName | lastName | classe | email | totalPoints | actionsCount | lastUpdate |
-|-----------|----------|--------|-------|-------------|--------------|------------|
-| Orehn | Ansellem | B1 | oansellem@eugeniaschool.com | 0 | 0 | |
-| Corentin | Ballonad | B1 | cballonad@eugeniaschool.com | 0 | 0 | |
-
-**Format** :
-- Ligne 1 = en-têtes
-- Ligne 2+ = données étudiants
-- Les colonnes totalPoints, actionsCount, lastUpdate seront remplies automatiquement
-
-#### Onglet `actions`
-
-**En-têtes (ligne 1)** :
-| A | B | C | D | E | F | G | H | I | J | K |
-|---|---|---|---|---|---|---|---|---|---|---|
-| id | email | type | data | status | date | decision | points | comment | validatedBy | validatedAt |
-
-**Données** : Automatiquement rempli par l'application
-**Status** : `pending`, `validated`, `rejected`
+L'application utilise Google Apps Script comme backend API pour lire et écrire dans Google Sheets.
 
 ---
 
-### 3. Importer vos étudiants
+## 🔗 Votre configuration
 
-Vous avez 2 options :
+**Google Sheet ID** : `1Ez2twfio9nCmkZhrB1jdTvchEh6XSVNjkdwQUF2IoLM`
 
-#### Option A : Copier-Coller
+**URL Google Sheet** : https://docs.google.com/spreadsheets/d/1Ez2twfio9nCmkZhrB1jdTvchEh6XSVNjkdwQUF2IoLM/edit
+
+**Apps Script URL** : `VITE_APP_SCRIPT_URL` dans `.env.local`
+
+---
+
+## 📋 Structure Google Sheets
+
+### Onglet `leaderboard`
+Classement des étudiants
+
+| A (Prénom) | B (Nom) | C (Classe) | D (Email) | E (Points) | F (Actions) | G (LastUpdate) |
+|------------|---------|------------|-----------|------------|-------------|----------------|
+
+### Onglet `actions`
+Soumissions d'actions
+
+| A (ID) | B (Email) | C (Type) | D (Data) | E (Status) | F (Date) | G (Decision) | H (Points) | I (Comment) | J (ValidatedBy) | K (ValidatedAt) |
+|--------|-----------|----------|----------|------------|----------|--------------|------------|-------------|-----------------|-----------------|
+
+### Onglet `config`
+Configuration admin (créé automatiquement)
+
+| A (Key) | B (Value) |
+|---------|-----------|
+| totalPrizePool | "+500€" |
+| deadline | "31 janvier 2026" |
+| actionTypes | [...] |
+| rewards | [...] |
+| automations | [...] |
+| landingTexts | {...} |
+
+---
+
+## 🚀 Configuration Apps Script
+
+### Étape 1 : Ouvrir Apps Script
 
 1. Ouvrez votre Google Sheet
-2. Onglet `leaderboard`
-3. Dans une ligne vide, collez :
-   ```
-   Orehn	Ansellem	B1	oansellem@eugeniaschool.com	0	0
-   Corentin	Ballonad	B1	cballonad@eugeniaschool.com	0	0
-   Walid	Bouzidane	B1	wbouzidane@eugeniaschool.com	0	0
-   ```
+2. **Extensions** > **Apps Script**
 
-(Liste complète dans `src/utils/resetData.js`)
+### Étape 2 : Copier le code
 
-#### Option B : Importer via app
+1. Ouvrez `apps-script/CodeV2.gs` dans votre éditeur
+2. Sélectionnez tout (Ctrl+A)
+3. Copiez (Ctrl+C)
+4. Collez dans Apps Script (Ctrl+V)
+5. **Sauvegardez** (Ctrl+S)
 
-L'application créera automatiquement les entrées lors de la première soumission.
+### Étape 3 : Déployer
 
----
+1. **Deploy** > **New deployment**
+2. ⚙️ à côté de "Select type"
+3. "Enable deployment types"
+4. **Web app**
+5. Configurez :
+   - Execute as: `Me`
+   - Who has access: `Anyone` ⚠️ Important !
+6. **Deploy**
+7. **Autorisez** les permissions
+8. **Copiez l'URL** du Web App
 
-### 4. Déployer Apps Script
+### Étape 4 : Configurer .env.local
 
-1. Dans votre Google Sheet : **Extensions** > **Apps Script**
-2. Supprimez tout le code par défaut
-3. Copiez le contenu de `apps-script/CodeV2.gs`
-4. **IMPORTANT** : Remplacez `YOUR_GOOGLE_SHEET_ID` ligne 11 par votre ID
-5. Cliquez sur **Save** (💾)
-
----
-
-### 5. Déployer en Web App
-
-1. Cliquez sur **Deploy** > **New deployment**
-2. Cliquez sur l'icône **⚙️** à côté de "Select type"
-3. Cliquez sur **Enable deployment types**
-4. Sélectionnez **Web app**
-5. Configuration :
-   - **Description** : `Eugenia Challenge Backend v1`
-   - **Execute as** : **Me** (votre compte Google)
-   - **Who has access** : **Anyone** (accès public)
-6. Cliquez sur **Deploy**
-7. **Autorisez les permissions** (première fois)
-8. **Copiez l'URL du Web App** (elle ressemble à : `https://script.google.com/macros/s/XXXXX/exec`)
-
----
-
-### 6. Configurer l'application React
-
-1. Créez un fichier `.env.local` à la racine du projet :
-   ```bash
-   VITE_APP_SCRIPT_URL=https://script.google.com/macros/s/VOTRE_ID/exec
-   ```
-
-2. Remplacez `VOTRE_ID` par l'URL que vous avez copiée
-
----
-
-### 7. Modifier googleSheets.js
-
-Le fichier `src/services/googleSheets.js` doit être mis à jour pour utiliser Apps Script au lieu de localStorage.
-
-**Modification nécessaire** : (voir fichier suivant)
-
----
-
-## ✅ Test
-
-### Test 1 : Leaderboard
-```
-GET https://script.google.com/macros/s/YOUR_ID/exec?action=getLeaderboard
+```bash
+VITE_APP_SCRIPT_URL=https://script.google.com/macros/s/VOTRE_ID/exec
+VITE_ADMIN_EMAIL=svelasquez@eugeniaschool.com
+VITE_ADMIN_PASSWORD=!EugeniaSchool2025!Walid
 ```
 
-**Attendu** : JSON avec vos étudiants
+### Étape 5 : Importer les étudiants
 
-### Test 2 : Soumission
-```
-POST https://script.google.com/macros/s/YOUR_ID/exec
-Body: {
-  "action": "submitAction",
-  "email": "test@eugeniaschool.com",
-  "type": "linkedin-post",
-  "data": {"link": "https://linkedin.com/test"}
-}
-```
-
-**Attendu** : `{"success": true, "actionId": "..."}`
+1. Dans Apps Script, créez un nouveau fichier
+2. Copiez le contenu de `docs/IMPORT-STUDENTS-SHEET.js`
+3. Menu déroulant : sélectionnez "importStudents"
+4. Cliquez **Run** ▶️
+5. Autorisez si demandé
+6. Attendez "Students imported successfully!"
 
 ---
 
-## 🔒 Sécurité
+## 🧪 Tests
 
-- **Execute as: Me** : Le script s'exécute avec vos permissions
-- **Who has access: Anyone** : Pas d'authentification requise
-- **Read/Write** : Full accès au Sheet
+### Test 1 : Apps Script direct
 
-**⚠️ Important** : Vos données Sheets sont accessibles par l'URL publique (mais pas par recherche Google)
+Ouvrez dans navigateur :
+```
+https://script.google.com/macros/s/VOTRE_ID/exec?action=getLeaderboard
+```
+
+**Attendu** : JSON avec les étudiants
 
 ---
 
-## 🚨 Dépannage
+### Test 2 : App locale
 
-### Erreur : "Sheet not found"
-- Vérifiez l'ID du Sheet
-- Vérifiez que les onglets s'appellent exactement : `leaderboard` et `actions`
+```bash
+npm run dev
+```
 
-### Erreur : "Permission denied"
-- Vérifiez que vous avez autorisé les permissions Apps Script
-
-### Erreur : "Invalid action"
-- Vérifiez l'URL du Web App
-- Vérifiez les paramètres de la requête
+1. http://localhost:5173/leaderboard
+2. Vérifiez que les étudiants apparaissent
+3. Console (F12) : Pas d'erreurs
 
 ---
 
-## 📊 Structure Sheets
+### Test 3 : Admin
 
-### leaderboard
-```
-Ligne 1: firstName | lastName | classe | email | totalPoints | actionsCount | lastUpdate
-Ligne 2: Jean      | Dupont   | B1     | jean@... | 150        | 5           | 2025-01-...
-```
-
-### actions
-```
-Ligne 1: id | email | type | data | status | date | decision | points | comment | validatedBy | validatedAt
-Ligne 2: act_123 | jean@... | linkedin-post | {"link":"..."} | pending | 2025-01-... | | | | |
-```
+1. http://localhost:5173/admin/login
+2. Connectez-vous
+3. Modifiez une configuration
+4. Vérifiez dans Google Sheets que c'est sauvegardé
 
 ---
 
-**C'est prêt ! Maintenant connectons le frontend** 🚀
+## 🔄 Workflow de données
+
+### Enregistrement (écriture)
+1. **Utilisateur** modifie dans l'admin
+2. **Frontend** envoie `fetch()` POST à Apps Script
+3. **Apps Script** écrit dans Google Sheets
+4. **Données sauvegardées** ✅
+
+### Affichage (lecture)
+1. **Frontend** charge page admin
+2. **Frontend** envoie `fetch()` GET à Apps Script
+3. **Apps Script** lit Google Sheets
+4. **Frontend** affiche les données ✅
+
+**Toutes les modifications sont synchronisées en temps réel !**
+
+---
+
+## 🐛 Dépannage
+
+### "Apps Script fetch failed"
+**Cause** : Apps Script non déployé ou URL incorrecte  
+**Solution** : Vérifiez `.env.local` et re-déployez Apps Script
+
+### "config sheet not found"
+**Cause** : Onglet config non créé  
+**Solution** : C'est normal ! Il sera créé au premier enregistrement
+
+### Erreur CORS
+**Cause** : "Who has access" pas "Anyone"  
+**Solution** : Re-déployez avec "Anyone"
+
+### Données vides
+**Cause** : Sheet vide ou étudiants non importés  
+**Solution** : Exécutez `importStudents()` dans Apps Script
+
+---
+
+## ✅ Checklist
+
+- [ ] Google Sheet créé
+- [ ] 3 onglets : leaderboard, actions, config (créé auto)
+- [ ] Code CodeV2.gs dans Apps Script
+- [ ] SHEET_ID configuré (ligne 9)
+- [ ] Web App déployé
+- [ ] Permissions autorisées
+- [ ] .env.local configuré
+- [ ] Students importés
+- [ ] Tests OK
+
+---
+
+## 📞 Support
+
+**Documentation** :
+- Apps Script : https://developers.google.com/apps-script
+- Google Sheets API : https://developers.google.com/sheets
+
+**En cas de problème** : Vérifiez les logs dans Apps Script (Executions)
 

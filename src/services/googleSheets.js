@@ -405,6 +405,79 @@ export async function checkExternalSheet(data, sheetId, column) {
   };
 }
 
+/**
+ * Update leaderboard user (full admin update)
+ */
+export async function updateLeaderboardUser(userData) {
+  try {
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(APP_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateLeaderboardUser',
+            ...userData
+          })
+        });
+        const text = await response.text();
+        return JSON.parse(text);
+      } catch (fetchError) {
+        console.warn('Apps Script fetch failed, using localStorage fallback:', fetchError);
+      }
+    }
+    
+    // Fallback localStorage
+    const leaderboard = getStoredLeaderboard();
+    const userIndex = leaderboard.findIndex(u => u.email === userData.email);
+    
+    if (userIndex >= 0) {
+      leaderboard[userIndex] = { ...leaderboard[userIndex], ...userData };
+    } else {
+      leaderboard.push(userData);
+    }
+    
+    localStorage.setItem(STORAGE_KEYS.LEADERBOARD, JSON.stringify(leaderboard));
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating leaderboard user:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Delete leaderboard user
+ */
+export async function deleteLeaderboardUser(email) {
+  try {
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(APP_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'deleteLeaderboardUser',
+            email
+          })
+        });
+        const text = await response.text();
+        return JSON.parse(text);
+      } catch (fetchError) {
+        console.warn('Apps Script fetch failed, using localStorage fallback:', fetchError);
+      }
+    }
+    
+    // Fallback localStorage
+    const leaderboard = getStoredLeaderboard();
+    const filtered = leaderboard.filter(u => u.email !== email);
+    localStorage.setItem(STORAGE_KEYS.LEADERBOARD, JSON.stringify(filtered));
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting leaderboard user:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default {
   submitAction,
   getAllActions,
@@ -413,6 +486,8 @@ export default {
   validateAction,
   updateLeaderboard,
   getLeaderboard,
+  updateLeaderboardUser,
+  deleteLeaderboardUser,
   connectToSheet,
   connectExternalSheet,
   checkExternalSheet

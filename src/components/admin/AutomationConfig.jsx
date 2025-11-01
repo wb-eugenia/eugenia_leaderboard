@@ -26,11 +26,11 @@ export default function AutomationConfig() {
     loadData();
   }, []);
 
-  const loadData = () => {
+  const loadData = async () => {
     setLoading(true);
     try {
-      const rules = getAutomationRules();
-      const types = getActionTypes();
+      const rules = await getAutomationRules();
+      const types = await getActionTypes();
       setAutomations(rules);
       setActionTypes(types);
     } catch (error) {
@@ -74,7 +74,7 @@ export default function AutomationConfig() {
     setShowAddForm(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.actionTypeId || !formData.sheetId || !formData.studentIdColumns) {
       alert('Veuillez remplir tous les champs obligatoires (Type d\'action, Sheet ID, Colonnes ID étudiant)');
       return;
@@ -101,23 +101,23 @@ export default function AutomationConfig() {
       updatedAt: new Date().toISOString()
     };
 
-    saveAutomationRule(automation);
-    loadData();
+    await saveAutomationRule(automation);
+    await loadData();
     setShowAddForm(false);
     setEditingAutomation(null);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette automatisation ?')) {
-      deleteAutomationRule(id);
-      loadData();
+      await deleteAutomationRule(id);
+      await loadData();
     }
   };
 
-  const handleToggle = (automation) => {
+  const handleToggle = async (automation) => {
     const updated = { ...automation, enabled: !automation.enabled };
-    saveAutomationRule(updated);
-    loadData();
+    await saveAutomationRule(updated);
+    await loadData();
   };
 
   const getActionTypeName = (id) => {

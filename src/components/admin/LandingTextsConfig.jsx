@@ -7,9 +7,17 @@ export default function LandingTextsConfig() {
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    const loadedConfig = loadConfig();
-    setConfig(loadedConfig);
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      const loadedConfig = await loadConfig();
+      setConfig(loadedConfig);
+    } catch (error) {
+      console.error('Error loading config:', error);
+    }
+  };
 
   const handleUpdate = (field, value) => {
     setConfig({
@@ -21,12 +29,12 @@ export default function LandingTextsConfig() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
     setMessage({ type: '', text: '' });
 
     try {
-      saveConfig(config);
+      await saveConfig(config);
       setMessage({ 
         type: 'success', 
         text: '✅ Configuration sauvegardée avec succès !' 

@@ -7,10 +7,24 @@ export default function ValidationQueue() {
   const [pendingActions, setPendingActions] = useState([]);
   const [selectedAction, setSelectedAction] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [actionTypes, setActionTypes] = useState([]);
 
   useEffect(() => {
-    loadPendingActions();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      const actions = await getActionsToValidate();
+      const types = await getActionTypes();
+      setPendingActions(actions);
+      setActionTypes(types);
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadPendingActions = async () => {
     try {
@@ -18,8 +32,6 @@ export default function ValidationQueue() {
       setPendingActions(actions);
     } catch (error) {
       console.error('Error loading pending actions:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -50,7 +62,6 @@ export default function ValidationQueue() {
   };
 
   const getActionTypeLabel = (typeId) => {
-    const actionTypes = getActionTypes();
     const type = actionTypes.find(t => t.id === typeId);
     return type ? `${type.emoji} ${type.label}` : typeId;
   };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getLeaderboard } from '../../services/googleSheets';
+import { getLeaderboard, updateLeaderboardUser, deleteLeaderboardUser } from '../../services/googleSheets';
 
 export default function LeaderboardConfig() {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -39,37 +39,32 @@ export default function LeaderboardConfig() {
     setShowAddForm(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingUser.email || !editingUser.firstName) {
       alert('Veuillez remplir email et prénom');
       return;
     }
 
-    // Ici on devrait appeler updateLeaderboard mais pour l'instant on met à jour localStorage
-    const stored = localStorage.getItem('eugenia_leaderboard');
-    const users = stored ? JSON.parse(stored) : [];
+    const result = await updateLeaderboardUser(editingUser);
     
-    const existingIndex = users.findIndex(u => u.email === editingUser.email);
-    
-    if (existingIndex >= 0) {
-      users[existingIndex] = editingUser;
+    if (result.success) {
+      await loadLeaderboard();
+      setEditingUser(null);
+      setShowAddForm(false);
     } else {
-      users.push(editingUser);
+      alert('Erreur lors de la sauvegarde: ' + (result.error || 'Erreur inconnue'));
     }
-    
-    localStorage.setItem('eugenia_leaderboard', JSON.stringify(users));
-    loadLeaderboard();
-    setEditingUser(null);
-    setShowAddForm(false);
   };
 
-  const handleDelete = (email) => {
+  const handleDelete = async (email) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cet étudiant ?')) {
-      const stored = localStorage.getItem('eugenia_leaderboard');
-      const users = stored ? JSON.parse(stored) : [];
-      const filtered = users.filter(u => u.email !== email);
-      localStorage.setItem('eugenia_leaderboard', JSON.stringify(filtered));
-      loadLeaderboard();
+      const result = await deleteLeaderboardUser(email);
+      
+      if (result.success) {
+        await loadLeaderboard();
+      } else {
+        alert('Erreur lors de la suppression: ' + (result.error || 'Erreur inconnue'));
+      }
     }
   };
 
