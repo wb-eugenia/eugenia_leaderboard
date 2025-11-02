@@ -10,6 +10,15 @@ const STORAGE_KEYS = {
   LEADERBOARD: 'eugenia_leaderboard'
 };
 
+// Cache for API responses
+const CACHE_DURATION = {
+  LEADERBOARD: 30000,  // 30 seconds
+  ACTIONS: 15000,      // 15 seconds
+  CONFIG: 60000        // 60 seconds
+};
+
+let memoryCache = {};
+
 // Helper: Fetch JSON with error handling
 async function fetchJSON(url, options = {}) {
   try {
@@ -22,6 +31,42 @@ async function fetchJSON(url, options = {}) {
   } catch (error) {
     console.error('Fetch error:', error);
     throw error;
+  }
+}
+
+// Helper: Check cache validity
+function isValidCacheEntry(cacheKey, duration) {
+  const entry = memoryCache[cacheKey];
+  if (!entry) return false;
+  
+  const age = Date.now() - entry.timestamp;
+  return age < duration;
+}
+
+// Helper: Get from cache or fetch
+async function getCachedOrFetch(cacheKey, fetchFn, duration) {
+  if (isValidCacheEntry(cacheKey, duration)) {
+    console.log(`✅ Cache HIT: ${cacheKey}`);
+    return memoryCache[cacheKey].data;
+  }
+  
+  console.log(`❌ Cache MISS: ${cacheKey}`);
+  const data = await fetchFn();
+  
+  memoryCache[cacheKey] = {
+    data,
+    timestamp: Date.now()
+  };
+  
+  return data;
+}
+
+// Helper: Invalidate cache
+export function invalidateCache(cacheKey) {
+  if (cacheKey) {
+    delete memoryCache[cacheKey];
+  } else {
+    memoryCache = {};
   }
 }
 
@@ -52,6 +97,11 @@ export async function submitAction(actionData) {
         });
         const text = await response.text();
         const data = JSON.parse(text);
+        
+        // Invalidate cache on success
+        invalidateCache('actions_pending');
+        invalidateCache('actions_all');
+        
         return data;
       } catch (fetchError) {
         console.warn('Apps Script fetch failed, using localStorage fallback:', fetchError);
@@ -114,38 +164,42 @@ export async function submitAction(actionData) {
  * Récupère toutes les actions
  */
 export async function getAllActions() {
-  if (USE_APPS_SCRIPT) {
-    try {
-      const response = await fetch(`${APP_SCRIPT_URL}?action=getAllActions`);
-      const text = await response.text();
-      return JSON.parse(text);
-    } catch (error) {
-      console.warn('Apps Script fetch failed, using localStorage:', error);
+  return getCachedOrFetch('actions_all', async () => {
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(`${APP_SCRIPT_URL}?action=getAllActions`);
+        const text = await response.text();
+        return JSON.parse(text);
+      } catch (error) {
+        console.warn('Apps Script fetch failed, using localStorage:', error);
+      }
     }
-  }
-  return getStoredActions();
+    return getStoredActions();
+  }, CACHE_DURATION.ACTIONS);
 }
 
 /**
  * Récupère les actions à valider (status = pending)
  */
 export async function getActionsToValidate() {
-  if (USE_APPS_SCRIPT) {
-    try {
-      const response = await fetch(`${APP_SCRIPT_URL}?action=getActionsToValidate`);
-      const text = await response.text();
-      const data = JSON.parse(text);
-      // Parse data field if it's a string
-      return data.map(action => ({
-        ...action,
-        data: typeof action.data === 'string' ? JSON.parse(action.data) : action.data
-      }));
-    } catch (error) {
-      console.warn('Apps Script fetch failed, using localStorage:', error);
+  return getCachedOrFetch('actions_pending', async () => {
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(`${APP_SCRIPT_URL}?action=getActionsToValidate`);
+        const text = await response.text();
+        const data = JSON.parse(text);
+        // Parse data field if it's a string
+        return data.map(action => ({
+          ...action,
+          data: typeof action.data === 'string' ? JSON.parse(action.data) : action.data
+        }));
+      } catch (error) {
+        console.warn('Apps Script fetch failed, using localStorage:', error);
+      }
     }
-  }
-  const actions = getStoredActions();
-  return actions.filter(action => action.status === 'pending');
+    const actions = getStoredActions();
+    return actions.filter(action => action.status === 'pending');
+  }, CACHE_DURATION.ACTIONS);
 }
 
 /**
@@ -191,6 +245,12 @@ export async function validateAction(actionId, decision, points = 0, comment = '
         });
         const text = await response.text();
         const data = JSON.parse(text);
+        
+        // Invalidate all related caches
+        invalidateCache('actions_pending');
+        invalidateCache('actions_all');
+        invalidateCache('leaderboard');
+        
         return data;
       } catch (fetchError) {
         console.warn('Apps Script fetch failed, using localStorage:', fetchError);
@@ -271,36 +331,38 @@ export async function updateLeaderboard(email, points) {
  * Récupère le leaderboard
  */
 export async function getLeaderboard() {
-  let leaderboard;
-  
-  if (USE_APPS_SCRIPT) {
-    try {
-      const response = await fetch(`${APP_SCRIPT_URL}?action=getLeaderboard`);
-      const text = await response.text();
-      leaderboard = JSON.parse(text);
-    } catch (error) {
-      console.warn('Apps Script fetch failed, using localStorage:', error);
+  return getCachedOrFetch('leaderboard', async () => {
+    let leaderboard;
+    
+    if (USE_APPS_SCRIPT) {
+      try {
+        const response = await fetch(`${APP_SCRIPT_URL}?action=getLeaderboard`);
+        const text = await response.text();
+        leaderboard = JSON.parse(text);
+      } catch (error) {
+        console.warn('Apps Script fetch failed, using localStorage:', error);
+        leaderboard = getStoredLeaderboard();
+      }
+    } else {
       leaderboard = getStoredLeaderboard();
     }
-  } else {
-    leaderboard = getStoredLeaderboard();
-  }
-  
-  // Trier par points décroissant
-  const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
-  
-  // Ajouter le rang (gestion des ex aequo)
-  let rank = 1;
-  return sorted.map((user, index) => {
-    // Si ce n'est pas le premier et que les points sont différents du précédent, augmenter le rang
-    if (index > 0 && user.totalPoints !== sorted[index - 1].totalPoints) {
-      rank = index + 1;
-    }
-    return {
-      ...user,
-      rank
-    };
-  });
+    
+    // Trier par points décroissant
+    const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
+    
+    // Ajouter le rang (gestion des ex aequo)
+    let rank = 1;
+    return sorted.map((user, index) => {
+      // Si ce n'est pas le premier et que les points sont différents du précédent, augmenter le rang
+      if (index > 0 && user.totalPoints !== sorted[index - 1].totalPoints) {
+        rank = index + 1;
+      }
+      return {
+        ...user,
+        rank
+      };
+    });
+  }, CACHE_DURATION.LEADERBOARD);
 }
 
 /**
