@@ -199,7 +199,7 @@ export default function AdminDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Actions en attente */}
-        <Link to="/admin/validate" className="card hover:shadow-2xl transition-shadow">
+        <Link to="/admin/validate" className="admin-card stats-card pending hover:shadow-2xl transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-4xl font-bold text-red-600">
@@ -211,7 +211,7 @@ export default function AdminDashboard() {
           </div>
           {stats.pendingActions > 0 && (
             <div className="mt-4">
-              <div className="badge badge-danger">
+              <div className="badge badge-admin-danger">
                 Action requise
               </div>
             </div>
@@ -219,10 +219,10 @@ export default function AdminDashboard() {
         </Link>
 
         {/* Total actions */}
-        <div className="card">
+        <div className="admin-card stats-card info">
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-4xl font-bold text-primary-600">
+              <div className="text-4xl font-bold" style={{ color: 'var(--eugenia-burgundy)' }}>
                 {stats.totalActions}
               </div>
               <div className="text-gray-600 mt-2">Total actions</div>
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Total users */}
-        <div className="card">
+        <div className="admin-card stats-card success">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-4xl font-bold text-green-600">
@@ -245,7 +245,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Total points */}
-        <div className="card">
+        <div className="admin-card stats-card info">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-4xl font-bold text-eugenia-yellow">
@@ -259,15 +259,15 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="card">
-        <h3 className="text-xl font-bold text-gray-900 mb-4">
+      <div className="admin-card">
+        <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--eugenia-burgundy)' }}>
           Actions rapides
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link to="/admin/validate" className="btn btn-danger w-full">
+          <Link to="/admin/validate" className="btn btn-admin-danger w-full">
             📋 Valider les actions ({stats.pendingActions})
           </Link>
-          <Link to="/admin/actions" className="btn btn-secondary w-full">
+          <Link to="/admin/actions" className="btn btn-admin-secondary w-full">
             ⚙️ Configurer les types
           </Link>
           <Link to="/leaderboard" className="btn btn-outline w-full">
@@ -278,8 +278,8 @@ export default function AdminDashboard() {
 
       {/* Alerts */}
       {alerts.length > 0 && (
-        <div className="card border-l-4 border-yellow-400 bg-yellow-50">
-          <h3 className="text-xl font-bold text-gray-900 mb-4">
+        <div className="admin-card alert-admin alert-admin-warning">
+          <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--eugenia-burgundy)' }}>
             ⚠️ Alertes & Anomalies ({alerts.length})
           </h3>
           <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -304,9 +304,9 @@ export default function AdminDashboard() {
       )}
 
       {/* Recent Activity */}
-      <div className="card">
+      <div className="admin-card">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-900">
+          <h3 className="text-xl font-bold" style={{ color: 'var(--eugenia-burgundy)' }}>
             Activité récente
           </h3>
           <div className="flex gap-2">
@@ -314,7 +314,7 @@ export default function AdminDashboard() {
               onClick={() => setActivityFilter('all')}
               className={`px-3 py-1 rounded-lg text-sm font-semibold transition-colors ${
                 activityFilter === 'all' 
-                  ? 'bg-primary-600 text-white' 
+                  ? 'btn-admin-primary' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >

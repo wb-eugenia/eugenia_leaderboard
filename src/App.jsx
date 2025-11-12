@@ -13,6 +13,10 @@ import LeaderboardConfig from './components/admin/LeaderboardConfig';
 import AutomationConfig from './components/admin/AutomationConfig';
 import RewardsConfig from './components/admin/RewardsConfig';
 import LandingTextsConfig from './components/admin/LandingTextsConfig';
+import LandingConfig from './components/admin/LandingConfig';
+import Analytics from './pages/Analytics';
+import GoogleOAuthCallback from './pages/GoogleOAuthCallback';
+import GoogleSheetsSetup from './pages/GoogleSheetsSetup';
 
 function App() {
   return (
@@ -22,6 +26,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/submit" element={<SubmitActionPage />} />
+        <Route path="/google-oauth/callback" element={<GoogleOAuthCallback />} />
         
         {/* Login admin */}
         <Route path="/admin/login" element={<AdminLogin />} />
@@ -33,8 +38,10 @@ function App() {
           <Route path="actions" element={<ActionTypeEditor />} />
           <Route path="leaderboard" element={<LeaderboardConfig />} />
           <Route path="automations" element={<AutomationConfig />} />
-          <Route path="rewards" element={<RewardsConfig />} />
-          <Route path="texts" element={<LandingTextsConfig />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="google-sheets" element={<GoogleSheetsSetup />} />
+          <Route path="rewards" element={<LandingConfig />} />
+          <Route path="texts" element={<LandingConfig />} />
         </Route>
         
         {/* Route guide admin protégée */}

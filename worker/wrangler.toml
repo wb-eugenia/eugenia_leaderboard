@@ -1,0 +1,13 @@
+# Cloudflare Worker configuration
+name = "eugenia-challenge-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Cloudflare D1 Database
+# Même base de données que Pages
+[[d1_databases]]
+binding = "DB"
+database_name = "eugeniachallenge"
+database_id = "e886fdb6-6b2e-4b45-aa5d-645af85ef63a"
+
+

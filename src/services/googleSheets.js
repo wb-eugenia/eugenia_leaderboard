@@ -1,9 +1,21 @@
 // Service de gestion Google Sheets
 import { SHEETS_CONFIG } from '../config/defaultConfig.js';
 
-// Configuration Apps Script
-const APP_SCRIPT_URL = import.meta.env.VITE_APP_SCRIPT_URL;
-const USE_APPS_SCRIPT = !!APP_SCRIPT_URL;
+// Configuration API (Worker D1 ou Apps Script)
+const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_APP_SCRIPT_URL;
+const USE_API = !!API_URL;
+const USE_D1_API = !!import.meta.env.VITE_API_URL; // True if using D1 Worker
+
+// Debug logging
+console.log('📊 API Service initialized:');
+console.log('  - API_URL:', API_URL ? API_URL.substring(0, 50) + '...' : 'NOT SET');
+console.log('  - USE_API:', USE_API);
+console.log('  - USE_D1_API:', USE_D1_API);
+console.log('  - Mode:', USE_D1_API ? 'Cloudflare D1 Worker' : USE_API ? 'Google Apps Script' : 'localStorage fallback');
+
+if (!API_URL) {
+  console.warn('⚠️ VITE_API_URL or VITE_APP_SCRIPT_URL is not configured! All data will use localStorage fallback.');
+}
 
 const STORAGE_KEYS = {
   ACTIONS: 'eugenia_actions',
@@ -82,21 +94,50 @@ function generateId() {
  */
 export async function submitAction(actionData) {
   try {
-    // Si Apps Script configuré, utiliser Apps Script
-    if (USE_APPS_SCRIPT) {
+    // Si API configurée (D1 Worker ou Apps Script)
+    if (USE_API) {
       try {
-        const response = await fetch(APP_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        console.log('📤 Submitting action to API:', API_URL);
+        console.log('   Data:', { email: actionData.email, type: actionData.type });
+        
+        let url, body;
+        if (USE_D1_API) {
+          // D1 Worker API - REST endpoint
+          url = `${API_URL}/actions/submit`;
+          body = JSON.stringify({
+            email: actionData.email,
+            type: actionData.type,
+            data: actionData.data || {}
+          });
+        } else {
+          // Apps Script API - legacy format
+          url = API_URL;
+          body = JSON.stringify({
             action: 'submitAction',
             email: actionData.email,
             type: actionData.type,
             data: actionData.data || {}
-          })
+          });
+        }
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
         });
+        
+        console.log('📥 Response status:', response.status, response.statusText);
         const text = await response.text();
+        console.log('📥 Response text:', text.substring(0, 200));
+        
         const data = JSON.parse(text);
+        console.log('📥 Parsed response:', data);
+        
+        if (data.success) {
+          console.log('✅ Action submitted successfully to API');
+        } else {
+          console.error('❌ API returned error:', data.error);
+        }
         
         // Invalidate cache on success
         invalidateCache('actions_pending');
@@ -104,9 +145,17 @@ export async function submitAction(actionData) {
         
         return data;
       } catch (fetchError) {
-        console.warn('Apps Script fetch failed, using localStorage fallback:', fetchError);
+        console.error('❌ API fetch failed:', fetchError);
+        console.error('   Error details:', {
+          message: fetchError.message,
+          stack: fetchError.stack,
+          url: API_URL
+        });
+        console.warn('⚠️ Falling back to localStorage');
         // Fallback to localStorage if fetch fails
       }
+    } else {
+      console.warn('⚠️ API not configured, using localStorage fallback');
     }
     
     // Fallback localStorage - Check for duplicates
@@ -165,13 +214,21 @@ export async function submitAction(actionData) {
  */
 export async function getAllActions() {
   return getCachedOrFetch('actions_all', async () => {
-    if (USE_APPS_SCRIPT) {
+    if (USE_API) {
       try {
-        const response = await fetch(`${APP_SCRIPT_URL}?action=getAllActions`);
+        const url = USE_D1_API 
+          ? `${API_URL}/actions/all`
+          : `${API_URL}?action=getAllActions`;
+        const response = await fetch(url);
         const text = await response.text();
-        return JSON.parse(text);
+        const data = JSON.parse(text);
+        // Parse data field if it's a string
+        return data.map(action => ({
+          ...action,
+          data: typeof action.data === 'string' ? JSON.parse(action.data) : action.data
+        }));
       } catch (error) {
-        console.warn('Apps Script fetch failed, using localStorage:', error);
+        console.warn('API fetch failed, using localStorage:', error);
       }
     }
     return getStoredActions();
@@ -183,9 +240,12 @@ export async function getAllActions() {
  */
 export async function getActionsToValidate() {
   return getCachedOrFetch('actions_pending', async () => {
-    if (USE_APPS_SCRIPT) {
+    if (USE_API) {
       try {
-        const response = await fetch(`${APP_SCRIPT_URL}?action=getActionsToValidate`);
+        const url = USE_D1_API 
+          ? `${API_URL}/actions/pending`
+          : `${API_URL}?action=getActionsToValidate`;
+        const response = await fetch(url);
         const text = await response.text();
         const data = JSON.parse(text);
         // Parse data field if it's a string
@@ -194,7 +254,7 @@ export async function getActionsToValidate() {
           data: typeof action.data === 'string' ? JSON.parse(action.data) : action.data
         }));
       } catch (error) {
-        console.warn('Apps Script fetch failed, using localStorage:', error);
+        console.warn('API fetch failed, using localStorage:', error);
       }
     }
     const actions = getStoredActions();
@@ -203,12 +263,91 @@ export async function getActionsToValidate() {
 }
 
 /**
+ * Supprime une action de la DB
+ */
+export async function deleteAction(actionId) {
+  try {
+    if (USE_API) {
+      try {
+        const url = USE_D1_API 
+          ? `${API_URL}/actions/${actionId}`
+          : `${API_URL}?action=deleteAction&id=${actionId}`;
+        
+        console.log('🗑️ DELETE request to:', url);
+        
+        const response = await fetch(url, {
+          method: USE_D1_API ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: USE_D1_API ? undefined : JSON.stringify({ actionId })
+        });
+        
+        console.log('🗑️ DELETE response status:', response.status, response.statusText);
+        
+        const text = await response.text();
+        console.log('🗑️ DELETE response text:', text);
+        
+        // Si la réponse n'est pas OK, ne pas utiliser le fallback
+        if (!response.ok) {
+          console.error('🗑️ DELETE failed with status:', response.status);
+          return { success: false, error: `HTTP ${response.status}: ${text || response.statusText}` };
+        }
+        
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error('🗑️ Failed to parse response:', parseError);
+          // Si la réponse n'est pas du JSON mais status est OK, considérer comme succès
+          if (response.ok) {
+            data = { success: true, message: 'Action deleted successfully' };
+          } else {
+            data = { success: false, error: text || 'Unknown error' };
+          }
+        }
+        
+        console.log('🗑️ DELETE parsed data:', data);
+        
+        // Invalidate all related caches
+        invalidateCache('actions_pending');
+        invalidateCache('actions_all');
+        invalidateCache('leaderboard');
+        
+        return data;
+      } catch (fetchError) {
+        console.error('🗑️ API fetch failed:', fetchError);
+        // Ne pas utiliser localStorage fallback en production avec D1
+        if (USE_D1_API) {
+          return { success: false, error: fetchError.message || 'Failed to delete action' };
+        }
+        console.warn('Using localStorage fallback:', fetchError);
+      }
+    }
+    
+    // Fallback localStorage (seulement si pas D1 API)
+    if (!USE_D1_API) {
+      const actions = getStoredActions();
+      const filtered = actions.filter(a => a.id !== actionId);
+      localStorage.setItem(STORAGE_KEYS.ACTIONS, JSON.stringify(filtered));
+      return { success: true };
+    }
+    
+    return { success: false, error: 'API not configured' };
+  } catch (error) {
+    console.error('Error deleting action:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Récupère une action par son ID
  */
 export async function getActionById(actionId) {
-  if (USE_APPS_SCRIPT) {
+  if (USE_API) {
     try {
-      const response = await fetch(`${APP_SCRIPT_URL}?action=getActionById&id=${actionId}`);
+      const url = USE_D1_API 
+        ? `${API_URL}/actions/${actionId}`
+        : `${API_URL}?action=getActionById&id=${actionId}`;
+      const response = await fetch(url);
       const text = await response.text();
       const data = JSON.parse(text);
       if (data && typeof data.data === 'string') {
@@ -216,7 +355,7 @@ export async function getActionById(actionId) {
       }
       return data;
     } catch (error) {
-      console.warn('Apps Script fetch failed, using localStorage:', error);
+      console.warn('API fetch failed, using localStorage:', error);
     }
   }
   const actions = getStoredActions();
@@ -228,20 +367,37 @@ export async function getActionById(actionId) {
  */
 export async function validateAction(actionId, decision, points = 0, comment = '', validatedBy = 'Admin') {
   try {
-    // Si Apps Script configuré
-    if (USE_APPS_SCRIPT) {
+    // Si API configurée
+    if (USE_API) {
       try {
-        const response = await fetch(APP_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        let url, body;
+        if (USE_D1_API) {
+          // D1 Worker API
+          url = `${API_URL}/actions/validate`;
+          body = JSON.stringify({
+            actionId,
+            decision,
+            points,
+            comment,
+            validatedBy
+          });
+        } else {
+          // Apps Script API
+          url = API_URL;
+          body = JSON.stringify({
             action: 'validateAction',
             actionId,
             decision,
             points,
             comment,
             validatedBy
-          })
+          });
+        }
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
         });
         const text = await response.text();
         const data = JSON.parse(text);
@@ -253,7 +409,7 @@ export async function validateAction(actionId, decision, points = 0, comment = '
         
         return data;
       } catch (fetchError) {
-        console.warn('Apps Script fetch failed, using localStorage:', fetchError);
+        console.warn('API fetch failed, using localStorage:', fetchError);
       }
     }
     
@@ -334,20 +490,34 @@ export async function getLeaderboard() {
   return getCachedOrFetch('leaderboard', async () => {
     let leaderboard;
     
-    if (USE_APPS_SCRIPT) {
+    if (USE_API) {
       try {
-        const response = await fetch(`${APP_SCRIPT_URL}?action=getLeaderboard`);
+        const url = USE_D1_API 
+          ? `${API_URL}/leaderboard`
+          : `${API_URL}?action=getLeaderboard`;
+        const response = await fetch(url);
         const text = await response.text();
         leaderboard = JSON.parse(text);
+        // D1 API already returns with ranks, but ensure compatibility
+        if (leaderboard && leaderboard.length > 0 && !leaderboard[0].rank) {
+          // If no rank, add it
+          let rank = 1;
+          leaderboard = leaderboard.map((user, index) => {
+            if (index > 0 && user.totalPoints !== leaderboard[index - 1].totalPoints) {
+              rank = index + 1;
+            }
+            return { ...user, rank };
+          });
+        }
       } catch (error) {
-        console.warn('Apps Script fetch failed, using localStorage:', error);
+        console.warn('API fetch failed, using localStorage:', error);
         leaderboard = getStoredLeaderboard();
       }
     } else {
       leaderboard = getStoredLeaderboard();
     }
     
-    // Trier par points décroissant
+    // Trier par points décroissant (if not already sorted)
     const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
     
     // Ajouter le rang (gestion des ex aequo)
@@ -472,20 +642,32 @@ export async function checkExternalSheet(data, sheetId, column) {
  */
 export async function updateLeaderboardUser(userData) {
   try {
-    if (USE_APPS_SCRIPT) {
+    if (USE_API) {
       try {
-        const response = await fetch(APP_SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        let url, body;
+        if (USE_D1_API) {
+          // D1 Worker API
+          url = `${API_URL}/leaderboard/user`;
+          body = JSON.stringify(userData);
+        } else {
+          // Apps Script API
+          url = API_URL;
+          body = JSON.stringify({
             action: 'updateLeaderboardUser',
             ...userData
-          })
+          });
+        }
+        
+        const response = await fetch(url, {
+          method: USE_D1_API ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
         });
         const text = await response.text();
+        invalidateCache('leaderboard');
         return JSON.parse(text);
       } catch (fetchError) {
-        console.warn('Apps Script fetch failed, using localStorage fallback:', fetchError);
+        console.warn('API fetch failed, using localStorage fallback:', fetchError);
       }
     }
     
@@ -512,20 +694,30 @@ export async function updateLeaderboardUser(userData) {
  */
 export async function deleteLeaderboardUser(email) {
   try {
-    if (USE_APPS_SCRIPT) {
+    if (USE_API) {
       try {
-        const response = await fetch(APP_SCRIPT_URL, {
-          method: 'POST',
+        let url;
+        if (USE_D1_API) {
+          // D1 Worker API
+          url = `${API_URL}/leaderboard/user?email=${encodeURIComponent(email)}`;
+        } else {
+          // Apps Script API
+          url = API_URL;
+        }
+        
+        const response = await fetch(url, {
+          method: USE_D1_API ? 'DELETE' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          body: USE_D1_API ? undefined : JSON.stringify({
             action: 'deleteLeaderboardUser',
             email
           })
         });
         const text = await response.text();
+        invalidateCache('leaderboard');
         return JSON.parse(text);
       } catch (fetchError) {
-        console.warn('Apps Script fetch failed, using localStorage fallback:', fetchError);
+        console.warn('API fetch failed, using localStorage fallback:', fetchError);
       }
     }
     
@@ -540,16 +732,88 @@ export async function deleteLeaderboardUser(email) {
   }
 }
 
+/**
+ * Bulk import students
+ */
+export async function bulkImportStudents(students) {
+  try {
+    if (USE_API) {
+      try {
+        let url;
+        if (USE_D1_API) {
+          // D1 Worker API
+          url = `${API_URL}/leaderboard/bulk`;
+        } else {
+          // Apps Script API
+          url = API_URL;
+        }
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...(USE_D1_API ? {} : { action: 'bulkImportStudents' }),
+            students
+          })
+        });
+        const text = await response.text();
+        invalidateCache('leaderboard');
+        return JSON.parse(text);
+      } catch (fetchError) {
+        console.warn('API fetch failed, using localStorage fallback:', fetchError);
+      }
+    }
+    
+    // Fallback localStorage
+    const leaderboard = getStoredLeaderboard();
+    let imported = 0;
+    let updated = 0;
+    const errors = [];
+
+    students.forEach((student) => {
+      const existingIndex = leaderboard.findIndex(u => u.email === student.email);
+      if (existingIndex >= 0) {
+        // Mettre à jour sans écraser les points existants
+        leaderboard[existingIndex] = {
+          ...leaderboard[existingIndex],
+          firstName: student.firstName,
+          lastName: student.lastName,
+          classe: student.classe || leaderboard[existingIndex].classe
+        };
+        updated++;
+      } else {
+        leaderboard.push({
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          classe: student.classe || 'B1',
+          totalPoints: student.totalPoints || 0,
+          actionsCount: 0
+        });
+        imported++;
+      }
+    });
+
+    localStorage.setItem(STORAGE_KEYS.LEADERBOARD, JSON.stringify(leaderboard));
+    return { success: true, imported, updated, errors };
+  } catch (error) {
+    console.error('Error bulk importing students:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default {
   submitAction,
   getAllActions,
   getActionsToValidate,
   getActionById,
   validateAction,
+  deleteAction,
   updateLeaderboard,
   getLeaderboard,
   updateLeaderboardUser,
   deleteLeaderboardUser,
+  bulkImportStudents,
   connectToSheet,
   connectExternalSheet,
   checkExternalSheet

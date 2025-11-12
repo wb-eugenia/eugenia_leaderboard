@@ -7,7 +7,13 @@ export default defineConfig({
     port: 3000
   },
   build: {
-    outDir: 'dist'
+    outDir: 'dist',
+    commonjsOptions: {
+      include: [/recharts/, /node_modules/]
+    }
+  },
+  optimizeDeps: {
+    include: ['recharts']
   }
 })
 

@@ -78,12 +78,21 @@ export default function SubmitActionPage() {
         if (result.error === 'duplicate') {
           setMessage({ type: 'error', text: result.message || 'Cette action a déjà été soumise. Veuillez soumettre une action différente.' });
         } else {
-          setMessage({ type: 'error', text: 'Erreur lors de la soumission. Veuillez réessayer.' });
+          // Display detailed error message
+          const errorMsg = result.error || result.message || 'Erreur lors de la soumission';
+          console.error('Submit error:', result);
+          setMessage({ 
+            type: 'error', 
+            text: `Erreur: ${errorMsg}. Veuillez vérifier votre connexion et réessayer.` 
+          });
         }
       }
     } catch (error) {
       console.error('Error submitting:', error);
-      setMessage({ type: 'error', text: 'Une erreur est survenue' });
+      setMessage({ 
+        type: 'error', 
+        text: `Une erreur est survenue: ${error.message || error.toString()}. Vérifiez votre connexion.` 
+      });
     } finally {
       setSubmitting(false);
     }

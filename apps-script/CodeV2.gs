@@ -161,18 +161,20 @@ function submitAction(data) {
     const nextRow = sheet.getLastRow() + 1;
     const id = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     
+    // Ordre des colonnes selon les en-têtes:
+    // ID, Email, Type, Data, Status, SubmittedAt, ValidatedAt, ValidatedBy, Points, Notes, AutoValidated
     sheet.appendRow([
-      id,
-      data.email,
-      data.type,
-      JSON.stringify(data.data || {}),
-      'pending',
-      new Date().toISOString(),
-      '',
-      0,
-      '',
-      '',
-      ''
+      id,                                    // 0: ID
+      data.email,                           // 1: Email
+      data.type,                            // 2: Type
+      JSON.stringify(data.data || {}),       // 3: Data
+      'pending',                            // 4: Status
+      new Date().toISOString(),             // 5: SubmittedAt
+      '',                                   // 6: ValidatedAt (vide pour l'instant)
+      '',                                   // 7: ValidatedBy (vide pour l'instant)
+      0,                                    // 8: Points (0 par défaut)
+      '',                                   // 9: Notes/Comment (vide pour l'instant)
+      ''                                    // 10: AutoValidated (vide pour l'instant)
     ]);
     
     return { success: true, actionId: id };
@@ -200,17 +202,17 @@ function getActionsToValidate() {
     const pendingActions = rows
       .filter(row => row[4] && row[4].toString().toLowerCase() === 'pending')
       .map(row => ({
-        id: row[0],
-        email: row[1],
-        type: row[2],
-        data: parseJSON(row[3] || '{}'),
-        status: row[4],
-        date: row[5],
-        decision: row[6],
-        points: row[7],
-        comment: row[8],
-        validatedBy: row[9],
-        validatedAt: row[10]
+        id: row[0],                                    // ID
+        email: row[1],                                // Email
+        type: row[2],                                 // Type
+        data: parseJSON(row[3] || '{}'),              // Data
+        status: row[4],                               // Status (pending)
+        date: row[5],                                 // SubmittedAt
+        decision: row[4] || '',                       // Decision = Status (même colonne, "pending")
+        points: parseInt(row[8]) || 0,                // Points (colonne 8)
+        comment: row[9] || '',                        // Notes/Comment (colonne 9)
+        validatedBy: row[7] || '',                    // ValidatedBy (colonne 7, vide si pending)
+        validatedAt: row[6] || ''                      // ValidatedAt (colonne 6, vide si pending)
       }));
     
     return createJSONResponse(pendingActions);
@@ -238,17 +240,17 @@ function getAllActions() {
     const allActions = rows
       .filter(row => row[0])
       .map(row => ({
-        id: row[0],
-        email: row[1],
-        type: row[2],
-        data: parseJSON(row[3] || '{}'),
-        status: row[4],
-        date: row[5],
-        decision: row[6],
-        points: row[7],
-        comment: row[8],
-        validatedBy: row[9],
-        validatedAt: row[10]
+        id: row[0],                                    // ID
+        email: row[1],                                // Email
+        type: row[2],                                 // Type
+        data: parseJSON(row[3] || '{}'),              // Data
+        status: row[4],                               // Status (pending/validated/rejected)
+        date: row[5],                                 // SubmittedAt
+        decision: row[4] || '',                      // Decision = Status (même colonne)
+        points: parseInt(row[8]) || 0,               // Points (colonne 8)
+        comment: row[9] || '',                        // Notes/Comment (colonne 9)
+        validatedBy: row[7] || '',                    // ValidatedBy (colonne 7)
+        validatedAt: row[6] || ''                     // ValidatedAt (colonne 6)
       }));
     
     return createJSONResponse(allActions);
@@ -276,17 +278,17 @@ function getActionById(actionId) {
     const action = rows
       .filter(row => row[0] === actionId)
       .map(row => ({
-        id: row[0],
-        email: row[1],
-        type: row[2],
-        data: parseJSON(row[3] || '{}'),
-        status: row[4],
-        date: row[5],
-        decision: row[6],
-        points: row[7],
-        comment: row[8],
-        validatedBy: row[9],
-        validatedAt: row[10]
+        id: row[0],                                    // ID
+        email: row[1],                                // Email
+        type: row[2],                                 // Type
+        data: parseJSON(row[3] || '{}'),              // Data
+        status: row[4],                               // Status (pending/validated/rejected)
+        date: row[5],                                 // SubmittedAt
+        decision: row[4] || '',                       // Decision = Status (même colonne)
+        points: parseInt(row[8]) || 0,               // Points (colonne 8)
+        comment: row[9] || '',                        // Notes/Comment (colonne 9)
+        validatedBy: row[7] || '',                    // ValidatedBy (colonne 7)
+        validatedAt: row[6] || ''                     // ValidatedAt (colonne 6)
       }))[0];
     
     return createJSONResponse(action);
@@ -320,12 +322,14 @@ function validateAction(data) {
     
     const actualRow = actionRowIndex + 2; // +1 for header, +1 for index base
     
-    // Update action
-    sheet.getRange(actualRow, 5).setValue(data.decision); // status
-    sheet.getRange(actualRow, 7).setValue(data.points || 0); // points
-    sheet.getRange(actualRow, 9).setValue(data.comment || ''); // comment
-    sheet.getRange(actualRow, 10).setValue(data.validatedBy || 'Admin'); // validatedBy
-    sheet.getRange(actualRow, 11).setValue(new Date().toISOString()); // validatedAt
+    // Update action selon l'ordre des colonnes:
+    // ID, Email, Type, Data, Status, SubmittedAt, ValidatedAt, ValidatedBy, Points, Notes, AutoValidated
+    sheet.getRange(actualRow, 5).setValue(data.decision); // Status (colonne 5)
+    sheet.getRange(actualRow, 7).setValue(new Date().toISOString()); // ValidatedAt (colonne 7)
+    sheet.getRange(actualRow, 8).setValue(data.validatedBy || 'Admin'); // ValidatedBy (colonne 8)
+    sheet.getRange(actualRow, 9).setValue(data.points || 0); // Points (colonne 9)
+    sheet.getRange(actualRow, 10).setValue(data.comment || ''); // Notes/Comment (colonne 10)
+    // AutoValidated (colonne 11) reste vide ou peut être mis à jour si nécessaire
     
     // If validated, update leaderboard
     if (data.decision === 'validated') {

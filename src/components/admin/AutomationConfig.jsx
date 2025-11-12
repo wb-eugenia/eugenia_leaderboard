@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getActionTypes, getAutomationRules, saveAutomationRule, deleteAutomationRule } from '../../services/configService.js';
+import GoogleOAuthConnect from './GoogleOAuthConnect.jsx';
 
 export default function AutomationConfig() {
   const [automations, setAutomations] = useState([]);
@@ -101,10 +102,16 @@ export default function AutomationConfig() {
       updatedAt: new Date().toISOString()
     };
 
-    await saveAutomationRule(automation);
-    await loadData();
-    setShowAddForm(false);
-    setEditingAutomation(null);
+    try {
+      await saveAutomationRule(automation);
+      await loadData();
+      setShowAddForm(false);
+      setEditingAutomation(null);
+      alert('✅ Automatisation sauvegardée avec succès !');
+    } catch (error) {
+      console.error('Error saving automation:', error);
+      alert(`❌ Erreur lors de la sauvegarde: ${error.message || error.toString()}. Vérifiez la console pour plus de détails.`);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -162,6 +169,11 @@ export default function AutomationConfig() {
             ➕ Nouvelle automatisation
           </button>
         </div>
+      </div>
+
+      {/* Google OAuth Connection - Toujours visible en haut */}
+      <div className="mb-4">
+        <GoogleOAuthConnect userEmail={localStorage.getItem('adminEmail') || 'admin'} />
       </div>
 
       {/* Liste des automatisations */}

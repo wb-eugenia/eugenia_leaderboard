@@ -13,7 +13,7 @@ export const defaultConfig = {
     heroTitle: "🏆 EUGENIA CHALLENGE 2025 🏆",
     heroSubtitle: "Gagne des points, monte dans le classement,\ndeviens le champion du campus !",
     prizeBadge: "+500€ DE CAGNOTTE\naio gagner ce semestre !",
-    sectionRewardsTitle: "💰 Récompenses à gagner 💰",
+    sectionRewardsTitle: "Récompenses à gagner",
     sectionHowItWorksTitle: "Comment participer ?",
     step1Title: "Choisis une action",
     step1Desc: "Post LinkedIn, JPO, Hackathon, Association...",
@@ -22,9 +22,9 @@ export const defaultConfig = {
     step3Title: "Gagne des points !",
     step3Desc: "Monte dans le top 3 et gagne !",
     sectionActionsTitle: "Comment gagner des points ?",
-    sectionLeaderboardTitle: "🏆 Classement en direct - Course aux {amount}",
-    sectionLeaderboardSubtitle: "💰 Cagnotte : {amount} | Fin : {deadline}",
-    sectionFinalCTATitle: "💰 La course aux {amount} est lancée ! 💰",
+    sectionLeaderboardTitle: "Classement en direct - Course aux {amount}",
+    sectionLeaderboardSubtitle: "Cagnotte : {amount} | Fin : {deadline}",
+    sectionFinalCTATitle: "La course aux {amount} est lancée !",
     sectionFinalCTADesc: "Soumets ta première action maintenant et\ncommence à grimper dans le classement"
   },
   rewards: [

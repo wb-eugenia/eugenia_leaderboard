@@ -146,10 +146,16 @@ function getLeaderboard() {
 function submitAction(data) {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(ACTIONS_TAB);
+    let sheet = ss.getSheetByName(ACTIONS_TAB);
     
+    // Create sheet if it doesn't exist
     if (!sheet) {
-      return { success: false, error: 'Actions sheet not found' };
+      sheet = ss.insertSheet(ACTIONS_TAB);
+      sheet.appendRow([
+        'ID', 'Email', 'Type', 'Data', 'Status', 'SubmittedAt', 'ValidatedAt', 
+        'ValidatedBy', 'Points', 'Notes', 'AutoValidated'
+      ]);
+      Logger.log('✅ Created actions sheet');
     }
     
     // OPTIMIZED: Only read status, email, type, data columns (not the full row)
@@ -189,27 +195,41 @@ function submitAction(data) {
     }
     
     // Insert new action
+    // Ordre des colonnes selon les en-têtes:
+    // ID, Email, Type, Data, Status, SubmittedAt, ValidatedAt, ValidatedBy, Points, Notes, AutoValidated
     const id = 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    sheet.appendRow([
-      id,
-      data.email,
-      data.type,
-      JSON.stringify(data.data || {}),
-      'pending',
-      new Date().toISOString(),
-      '',
-      0,
-      '',
-      '',
-      ''
-    ]);
     
-    // Invalidate actions cache
-    invalidateCache('actions_data');
-    
-    return { success: true, actionId: id };
+    try {
+      sheet.appendRow([
+        id,                                    // 0: ID
+        data.email,                           // 1: Email
+        data.type,                            // 2: Type
+        JSON.stringify(data.data || {}),       // 3: Data
+        'pending',                            // 4: Status
+        new Date().toISOString(),             // 5: SubmittedAt
+        '',                                   // 6: ValidatedAt (vide pour l'instant)
+        '',                                   // 7: ValidatedBy (vide pour l'instant)
+        0,                                    // 8: Points (0 par défaut)
+        '',                                   // 9: Notes/Comment (vide pour l'instant)
+        ''                                    // 10: AutoValidated (vide pour l'instant)
+      ]);
+      
+      Logger.log('✅ Action submitted: ' + id);
+      Logger.log('Email: ' + data.email + ', Type: ' + data.type);
+      
+      // Invalidate all actions-related caches
+      invalidateCache('actions_data');
+      invalidateCache('actions_pending');
+      invalidateCache('actions_all');
+      
+      return { success: true, actionId: id };
+    } catch (writeError) {
+      Logger.log('❌ Error writing to sheet: ' + writeError.toString());
+      return { success: false, error: 'Write error: ' + writeError.toString() };
+    }
   } catch (error) {
-    return { success: false, error: error.toString() };
+    Logger.log('❌ Error in submitAction: ' + error.toString());
+    return { success: false, error: error.toString(), details: error.stack };
   }
 }
 
@@ -244,17 +264,17 @@ function getActionsToValidate() {
     const pendingActions = rows
       .filter(row => row[4] && row[4].toString().toLowerCase() === 'pending')
       .map(row => ({
-        id: row[0],
-        email: row[1],
-        type: row[2],
-        data: parseJSON(row[3] || '{}'),
-        status: row[4],
-        date: row[5],
-        decision: row[6],
-        points: row[7],
-        comment: row[8],
-        validatedBy: row[9],
-        validatedAt: row[10]
+        id: row[0],                                    // ID
+        email: row[1],                                // Email
+        type: row[2],                                 // Type
+        data: parseJSON(row[3] || '{}'),              // Data
+        status: row[4],                               // Status (pending)
+        date: row[5],                                 // SubmittedAt
+        decision: row[4] || '',                       // Decision = Status (même colonne, "pending")
+        points: parseInt(row[8]) || 0,                // Points (colonne 8)
+        comment: row[9] || '',                        // Notes/Comment (colonne 9)
+        validatedBy: row[7] || '',                    // ValidatedBy (colonne 7, vide si pending)
+        validatedAt: row[6] || ''                      // ValidatedAt (colonne 6, vide si pending)
       }));
     
     // Cache for 30 seconds
@@ -294,17 +314,17 @@ function getAllActions() {
     const allActions = rows
       .filter(row => row[0])
       .map(row => ({
-        id: row[0],
-        email: row[1],
-        type: row[2],
-        data: parseJSON(row[3] || '{}'),
-        status: row[4],
-        date: row[5],
-        decision: row[6],
-        points: row[7],
-        comment: row[8],
-        validatedBy: row[9],
-        validatedAt: row[10]
+        id: row[0],                                    // ID
+        email: row[1],                                // Email
+        type: row[2],                                 // Type
+        data: parseJSON(row[3] || '{}'),              // Data
+        status: row[4],                               // Status (pending/validated/rejected)
+        date: row[5],                                 // SubmittedAt
+        decision: row[4] || '',                      // Decision = Status (même colonne)
+        points: parseInt(row[8]) || 0,               // Points (colonne 8)
+        comment: row[9] || '',                        // Notes/Comment (colonne 9)
+        validatedBy: row[7] || '',                    // ValidatedBy (colonne 7)
+        validatedAt: row[6] || ''                     // ValidatedAt (colonne 6)
       }));
     
     cache.put('actions_all', JSON.stringify(allActions), CACHE_DURATION.ACTIONS);
@@ -345,17 +365,17 @@ function getActionById(actionId) {
     const row = sheet.getRange(actualRow, 1, 1, 11).getValues()[0];
     
     const action = {
-      id: row[0],
-      email: row[1],
-      type: row[2],
-      data: parseJSON(row[3] || '{}'),
-      status: row[4],
-      date: row[5],
-      decision: row[6],
-      points: row[7],
-      comment: row[8],
-      validatedBy: row[9],
-      validatedAt: row[10]
+      id: row[0],                                    // ID
+      email: row[1],                                // Email
+      type: row[2],                                 // Type
+      data: parseJSON(row[3] || '{}'),              // Data
+      status: row[4],                               // Status (pending/validated/rejected)
+      date: row[5],                                 // SubmittedAt
+      decision: row[4] || '',                       // Decision = Status (même colonne)
+      points: parseInt(row[8]) || 0,               // Points (colonne 8)
+      comment: row[9] || '',                        // Notes/Comment (colonne 9)
+      validatedBy: row[7] || '',                    // ValidatedBy (colonne 7)
+      validatedAt: row[6] || ''                     // ValidatedAt (colonne 6)
     };
     
     return createJSONResponse(action);
@@ -392,18 +412,15 @@ function validateAction(data) {
     const actualRow = rowIndex + 2;
     const email = idColumn[rowIndex][1];
     
-    // OPTIMIZED: Batch update in one call using setValues
-    const updateRange = sheet.getRange(actualRow, 5, 1, 7);
-    const updateValues = [[
-      data.decision,           // Status (col 5)
-      '',                      // Decision (col 6) - unused
-      data.points || 0,        // Points (col 8)
-      data.comment || '',      // Comment (col 9)
-      data.validatedBy || 'Admin', // ValidatedBy (col 10)
-      new Date().toISOString() // ValidatedAt (col 11)
-    ]];
-    
-    updateRange.setValues(updateValues);
+    // OPTIMIZED: Batch update selon l'ordre des colonnes:
+    // ID, Email, Type, Data, Status, SubmittedAt, ValidatedAt, ValidatedBy, Points, Notes, AutoValidated
+    // Mise à jour des colonnes 5 (Status), 7 (ValidatedAt), 8 (ValidatedBy), 9 (Points), 10 (Notes)
+    sheet.getRange(actualRow, 5).setValue(data.decision); // Status (colonne 5)
+    sheet.getRange(actualRow, 7).setValue(new Date().toISOString()); // ValidatedAt (colonne 7)
+    sheet.getRange(actualRow, 8).setValue(data.validatedBy || 'Admin'); // ValidatedBy (colonne 8)
+    sheet.getRange(actualRow, 9).setValue(data.points || 0); // Points (colonne 9)
+    sheet.getRange(actualRow, 10).setValue(data.comment || ''); // Notes/Comment (colonne 10)
+    // AutoValidated (colonne 11) reste vide ou peut être mis à jour si nécessaire
     
     // If validated, update leaderboard
     if (data.decision === 'validated') {
@@ -651,12 +668,16 @@ function getConfig() {
  */
 function saveConfig(data) {
   try {
+    Logger.log('💾 saveConfig called with ' + Object.keys(data.config || {}).length + ' keys');
+    
     const ss = SpreadsheetApp.openById(SHEET_ID);
     let sheet = ss.getSheetByName(CONFIG_TAB);
     
+    // Create sheet if it doesn't exist
     if (!sheet) {
       sheet = ss.insertSheet(CONFIG_TAB);
       sheet.appendRow(['Key', 'Value']);
+      Logger.log('✅ Created config sheet');
     }
     
     // OPTIMIZED: Batch delete and batch write
@@ -672,19 +693,31 @@ function saveConfig(data) {
         ? data.config[key] 
         : JSON.stringify(data.config[key]);
       configEntries.push([key, value]);
+      Logger.log('  - Config key: ' + key + ' (length: ' + value.length + ')');
     }
     
     // OPTIMIZED: Write all rows at once
     if (configEntries.length > 0) {
-      sheet.getRange(2, 1, configEntries.length, 2).setValues(configEntries);
+      try {
+        sheet.getRange(2, 1, configEntries.length, 2).setValues(configEntries);
+        Logger.log('✅ Config saved: ' + configEntries.length + ' entries written');
+      } catch (writeError) {
+        Logger.log('❌ Error writing config: ' + writeError.toString());
+        return { success: false, error: 'Write error: ' + writeError.toString() };
+      }
+    } else {
+      Logger.log('⚠️ No config entries to write');
+      return { success: false, error: 'No config data provided' };
     }
     
     // Invalidate cache
     invalidateCache('config_data');
     
-    return { success: true };
+    return { success: true, saved: configEntries.length };
   } catch (error) {
-    return { success: false, error: error.toString() };
+    Logger.log('❌ Error in saveConfig: ' + error.toString());
+    Logger.log('Stack: ' + error.stack);
+    return { success: false, error: error.toString(), details: error.stack };
   }
 }
 

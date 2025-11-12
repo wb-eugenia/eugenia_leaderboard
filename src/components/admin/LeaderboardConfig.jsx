@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getLeaderboard, updateLeaderboardUser, deleteLeaderboardUser } from '../../services/googleSheets';
+import { getLeaderboard, updateLeaderboardUser, deleteLeaderboardUser, bulkImportStudents } from '../../services/googleSheets';
+import BulkImportStudents from './BulkImportStudents';
 
 export default function LeaderboardConfig() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -83,12 +85,32 @@ export default function LeaderboardConfig() {
         <h2 className="text-2xl font-bold text-gray-900">
           🏆 Configuration Leaderboard
         </h2>
-        <button onClick={handleAdd} className="btn btn-primary">
-          ➕ Ajouter un étudiant
-        </button>
+        <div className="flex gap-2">
+          <button 
+            onClick={() => setShowImport(!showImport)} 
+            className={`btn ${showImport ? 'btn-secondary' : 'btn-admin-primary'}`}
+          >
+            {showImport ? '← Retour à la liste' : '📥 Import en masse'}
+          </button>
+          {!showImport && (
+            <button onClick={handleAdd} className="btn btn-primary">
+              ➕ Ajouter un étudiant
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Liste des étudiants */}
+      {/* Import en masse */}
+      {showImport && (
+        <div className="admin-card">
+          <BulkImportStudents onImportComplete={loadLeaderboard} />
+        </div>
+      )}
+
+      {/* Liste des étudiants - Masquée si import actif */}
+      {!showImport && (
+        <>
+          {/* Liste des étudiants */}
       <div className="card">
         <h3 className="text-xl font-bold mb-4">
           Étudiants ({leaderboard.length})
@@ -241,6 +263,8 @@ export default function LeaderboardConfig() {
             </button>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

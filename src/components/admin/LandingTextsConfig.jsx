@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { loadConfig, saveConfig } from '../../services/configService';
+import { getGlobalConfig, updateGlobalConfig } from '../../services/configService';
 
 export default function LandingTextsConfig() {
   const [config, setConfig] = useState(null);
+  const [landingTexts, setLandingTexts] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     loadData();
@@ -12,20 +14,61 @@ export default function LandingTextsConfig() {
 
   const loadData = async () => {
     try {
-      const loadedConfig = await loadConfig();
-      setConfig(loadedConfig);
+      console.log('🔄 Loading landing page config...');
+      const loadedConfig = await getGlobalConfig();
+      console.log('📥 Loaded config:', loadedConfig);
+      
+      // Si pas de config ou config invalide, utiliser des valeurs par défaut
+      if (!loadedConfig || typeof loadedConfig !== 'object') {
+        console.warn('⚠️ No config loaded, using defaults');
+        const defaultConfig = {
+          totalPrizePool: '+500€',
+          deadline: '31 janvier 2026',
+          landingTexts: {}
+        };
+        setConfig(defaultConfig);
+        setLandingTexts({});
+        return;
+      }
+      
+      // Forcer une nouvelle référence pour que React détecte le changement
+      const newConfig = {
+        ...loadedConfig,
+        landingTexts: loadedConfig.landingTexts ? { ...loadedConfig.landingTexts } : {}
+      };
+      console.log('🔄 Setting new config:', newConfig);
+      console.log('🔄 New landingTexts:', newConfig.landingTexts);
+      
+      // Mettre à jour les states
+      setConfig(newConfig);
+      setLandingTexts(loadedConfig.landingTexts ? { ...loadedConfig.landingTexts } : {});
+      
+      // Incrémenter la clé de refresh pour forcer le re-render des inputs
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
-      console.error('Error loading config:', error);
+      console.error('❌ Error loading config:', error);
+      // En cas d'erreur, initialiser avec des valeurs par défaut pour ne pas rester bloqué
+      const defaultConfig = {
+        totalPrizePool: '+500€',
+        deadline: '31 janvier 2026',
+        landingTexts: {}
+      };
+      setConfig(defaultConfig);
+      setLandingTexts({});
     }
   };
 
   const handleUpdate = (field, value) => {
+    if (!config) return; // Sécurité si config n'est pas encore chargé
+    
+    const updatedLandingTexts = {
+      ...landingTexts,
+      [field]: value
+    };
+    setLandingTexts(updatedLandingTexts);
     setConfig({
       ...config,
-      landingTexts: {
-        ...config.landingTexts,
-        [field]: value
-      }
+      landingTexts: updatedLandingTexts
     });
   };
 
@@ -34,7 +77,23 @@ export default function LandingTextsConfig() {
     setMessage({ type: '', text: '' });
 
     try {
-      await saveConfig(config);
+      console.log('💾 Saving config:', config);
+      console.log('💾 Saving landingTexts:', landingTexts);
+      // Utiliser config avec landingTexts à jour
+      const configToSave = {
+        ...config,
+        landingTexts: landingTexts
+      };
+      await updateGlobalConfig(configToSave);
+      console.log('✅ Config saved, reloading...');
+      // Attendre un peu pour que la DB soit mise à jour
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Vérifier directement que les données sont bien sauvegardées
+      const verifyConfig = await getGlobalConfig();
+      console.log('🔍 Verified config after save:', verifyConfig);
+      // Recharger les données après sauvegarde
+      await loadData();
+      console.log('✅ Data reloaded');
       setMessage({ 
         type: 'success', 
         text: '✅ Configuration sauvegardée avec succès !' 
@@ -42,9 +101,10 @@ export default function LandingTextsConfig() {
       
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } catch (error) {
+      console.error('❌ Error saving config:', error);
       setMessage({ 
         type: 'error', 
-        text: '❌ Erreur lors de la sauvegarde' 
+        text: `❌ Erreur lors de la sauvegarde: ${error.message}` 
       });
     } finally {
       setIsSaving(false);
@@ -59,8 +119,6 @@ export default function LandingTextsConfig() {
       </div>
     );
   }
-
-  const { landingTexts } = config;
 
   return (
     <div className="space-y-6">
@@ -83,7 +141,7 @@ export default function LandingTextsConfig() {
             <input
               type="text"
               className="form-control"
-              value={landingTexts.heroTitle}
+              value={landingTexts.heroTitle || ''}
               onChange={(e) => handleUpdate('heroTitle', e.target.value)}
             />
           </div>
@@ -92,7 +150,7 @@ export default function LandingTextsConfig() {
             <textarea
               className="form-control"
               rows="3"
-              value={landingTexts.heroSubtitle}
+              value={landingTexts.heroSubtitle || ''}
               onChange={(e) => handleUpdate('heroSubtitle', e.target.value)}
             />
           </div>
@@ -101,7 +159,7 @@ export default function LandingTextsConfig() {
             <textarea
               className="form-control"
               rows="2"
-              value={landingTexts.prizeBadge}
+              value={landingTexts.prizeBadge || ''}
               onChange={(e) => handleUpdate('prizeBadge', e.target.value)}
               placeholder="Ligne 1\nLigne 2"
             />
@@ -114,12 +172,12 @@ export default function LandingTextsConfig() {
         <h3 className="text-2xl font-bold mb-4">💰 Section Récompenses</h3>
         <div>
           <label className="block font-semibold mb-2">Titre</label>
-          <input
-            type="text"
-            className="form-control"
-            value={landingTexts.sectionRewardsTitle}
-            onChange={(e) => handleUpdate('sectionRewardsTitle', e.target.value)}
-          />
+            <input
+              type="text"
+              className="form-control"
+              value={landingTexts.sectionRewardsTitle || ''}
+              onChange={(e) => handleUpdate('sectionRewardsTitle', e.target.value)}
+            />
         </div>
       </div>
 
@@ -132,7 +190,7 @@ export default function LandingTextsConfig() {
             <input
               type="text"
               className="form-control"
-              value={landingTexts.sectionHowItWorksTitle}
+              value={landingTexts.sectionHowItWorksTitle || ''}
               onChange={(e) => handleUpdate('sectionHowItWorksTitle', e.target.value)}
             />
           </div>
@@ -142,7 +200,7 @@ export default function LandingTextsConfig() {
               <input
                 type="text"
                 className="form-control"
-                value={landingTexts.step1Title}
+                value={landingTexts.step1Title || ''}
                 onChange={(e) => handleUpdate('step1Title', e.target.value)}
               />
             </div>
@@ -151,7 +209,7 @@ export default function LandingTextsConfig() {
               <input
                 type="text"
                 className="form-control"
-                value={landingTexts.step2Title}
+                value={landingTexts.step2Title || ''}
                 onChange={(e) => handleUpdate('step2Title', e.target.value)}
               />
             </div>
@@ -160,7 +218,7 @@ export default function LandingTextsConfig() {
               <input
                 type="text"
                 className="form-control"
-                value={landingTexts.step3Title}
+                value={landingTexts.step3Title || ''}
                 onChange={(e) => handleUpdate('step3Title', e.target.value)}
               />
             </div>
@@ -171,7 +229,7 @@ export default function LandingTextsConfig() {
               <textarea
                 className="form-control"
                 rows="2"
-                value={landingTexts.step1Desc}
+                value={landingTexts.step1Desc || ''}
                 onChange={(e) => handleUpdate('step1Desc', e.target.value)}
               />
             </div>
@@ -180,7 +238,7 @@ export default function LandingTextsConfig() {
               <textarea
                 className="form-control"
                 rows="2"
-                value={landingTexts.step2Desc}
+                value={landingTexts.step2Desc || ''}
                 onChange={(e) => handleUpdate('step2Desc', e.target.value)}
               />
             </div>
@@ -189,7 +247,7 @@ export default function LandingTextsConfig() {
               <textarea
                 className="form-control"
                 rows="2"
-                value={landingTexts.step3Desc}
+                value={landingTexts.step3Desc || ''}
                 onChange={(e) => handleUpdate('step3Desc', e.target.value)}
               />
             </div>
@@ -202,12 +260,12 @@ export default function LandingTextsConfig() {
         <h3 className="text-2xl font-bold mb-4">⚡ Section Actions</h3>
         <div>
           <label className="block font-semibold mb-2">Titre</label>
-          <input
-            type="text"
-            className="form-control"
-            value={landingTexts.sectionActionsTitle}
-            onChange={(e) => handleUpdate('sectionActionsTitle', e.target.value)}
-          />
+            <input
+              type="text"
+              className="form-control"
+              value={landingTexts.sectionActionsTitle || ''}
+              onChange={(e) => handleUpdate('sectionActionsTitle', e.target.value)}
+            />
         </div>
       </div>
 
@@ -220,7 +278,7 @@ export default function LandingTextsConfig() {
             <input
               type="text"
               className="form-control"
-              value={landingTexts.sectionLeaderboardTitle}
+              value={landingTexts.sectionLeaderboardTitle || ''}
               onChange={(e) => handleUpdate('sectionLeaderboardTitle', e.target.value)}
             />
             <p className="text-xs text-gray-500 mt-1">Utiliser {"{amount}"} pour insérer le montant</p>
@@ -230,7 +288,7 @@ export default function LandingTextsConfig() {
             <input
               type="text"
               className="form-control"
-              value={landingTexts.sectionLeaderboardSubtitle}
+              value={landingTexts.sectionLeaderboardSubtitle || ''}
               onChange={(e) => handleUpdate('sectionLeaderboardSubtitle', e.target.value)}
             />
             <p className="text-xs text-gray-500 mt-1">Utiliser {"{amount}"} et {"{deadline}"} pour insérer les valeurs</p>
@@ -247,7 +305,7 @@ export default function LandingTextsConfig() {
             <input
               type="text"
               className="form-control"
-              value={landingTexts.sectionFinalCTATitle}
+              value={landingTexts.sectionFinalCTATitle || ''}
               onChange={(e) => handleUpdate('sectionFinalCTATitle', e.target.value)}
             />
             <p className="text-xs text-gray-500 mt-1">Utiliser {"{amount}"} pour insérer le montant</p>
@@ -257,7 +315,7 @@ export default function LandingTextsConfig() {
             <textarea
               className="form-control"
               rows="3"
-              value={landingTexts.sectionFinalCTADesc}
+              value={landingTexts.sectionFinalCTADesc || ''}
               onChange={(e) => handleUpdate('sectionFinalCTADesc', e.target.value)}
             />
           </div>
