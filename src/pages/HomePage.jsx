@@ -4,6 +4,7 @@ import { getLeaderboard } from '../services/googleSheets';
 import { getGlobalConfig, getActionTypes } from '../services/configService';
 import RewardCard from '../components/shared/RewardCard';
 import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 export default function HomePage() {
   const [config, setConfig] = useState(null);
@@ -324,6 +325,8 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getActionTypes } from '../services/configService';
 import { submitAction } from '../services/googleSheets';
 import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 export default function SubmitActionPage() {
   const navigate = useNavigate();
@@ -194,6 +195,7 @@ export default function SubmitActionPage() {
         </form>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

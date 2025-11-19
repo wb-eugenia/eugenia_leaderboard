@@ -1,5 +1,6 @@
 import Leaderboard from '../components/student/Leaderboard';
 import Header from '../components/shared/Header';
+import Footer from '../components/shared/Footer';
 
 export default function LeaderboardPage() {
   return (
@@ -8,6 +9,7 @@ export default function LeaderboardPage() {
       <div className="py-12 px-4">
         <Leaderboard />
       </div>
+      <Footer />
     </div>
   );
 }
