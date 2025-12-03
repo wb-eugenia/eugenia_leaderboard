@@ -128,7 +128,7 @@ export default function Sidebar({ school = 'eugenia', isOpen, onClose }) {
 
         {/* Navigation */}
         <nav className="p-4 space-y-2 flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
-          <div className="flex-1 space-y-2 overflow-y-auto">
+          <div className="flex-1 space-y-2 overflow-y-auto scrollbar-hide">
             {menuItems.map((item) => (
               <Link
                 key={item.path}

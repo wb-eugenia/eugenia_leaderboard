@@ -40,6 +40,7 @@ export default function AdminLogin({ school = 'eugenia' }) {
         // Stocker aussi en sessionStorage pour l'UI (optionnel)
         sessionStorage.setItem('admin_authenticated', 'true');
         sessionStorage.setItem('admin_email', credentials.email);
+        sessionStorage.setItem('admin_school', school);
         
         // Rediriger vers le dashboard admin de l'école
         const basePath = school === 'albert' ? '/albert-school/admin' : '/eugenia-school/admin';
@@ -60,6 +61,7 @@ export default function AdminLogin({ school = 'eugenia' }) {
           credentials.password === FALLBACK_PASSWORD) {
         sessionStorage.setItem('admin_authenticated', 'true');
         sessionStorage.setItem('admin_email', credentials.email);
+        sessionStorage.setItem('admin_school', school);
         const basePath = school === 'albert' ? '/albert-school/admin' : '/eugenia-school/admin';
         navigate(basePath);
       } else {

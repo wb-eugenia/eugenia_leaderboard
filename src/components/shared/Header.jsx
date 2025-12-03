@@ -21,7 +21,7 @@ function StudentAuthButton() {
   
   return (
     <Link 
-      to="/student/login" 
+      to="/select-school" 
       className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
     >
       🔐 Connexion
@@ -49,7 +49,7 @@ function StudentAuthButtonMobile({ onClose }) {
   
   return (
     <Link
-      to="/student/login"
+      to="/select-school"
       onClick={onClose}
       className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
     >
@@ -100,36 +100,6 @@ export default function Header() {
           
           {/* Liens navigation - Desktop seulement */}
           <div className="hidden md:flex gap-6 items-center">
-            <Link 
-              to="/portfolio" 
-              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
-            >
-              📁 Portfolio
-            </Link>
-            <Link 
-              to="/ambassadeurs" 
-              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
-            >
-              🌟 Ambassadeurs
-            </Link>
-            <Link 
-              to="/associations" 
-              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
-            >
-              🎪 Associations
-            </Link>
-            <Link 
-              to="/leaderboard" 
-              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
-            >
-              📊 Classement
-            </Link>
-            <Link 
-              to="/report" 
-              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
-            >
-              🚨 Signaler
-            </Link>
             <StudentAuthButton />
           </div>
           
@@ -164,46 +134,6 @@ export default function Header() {
 
             {/* Liens du menu */}
             <nav className="py-4">
-              <Link
-                to="/portfolio"
-                onClick={closeMenu}
-                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
-              >
-                <span className="text-xl">📁</span>
-                <span>Portfolio</span>
-              </Link>
-              <Link
-                to="/ambassadeurs"
-                onClick={closeMenu}
-                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
-              >
-                <span className="text-xl">🌟</span>
-                <span>Ambassadeurs</span>
-              </Link>
-              <Link
-                to="/associations"
-                onClick={closeMenu}
-                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
-              >
-                <span className="text-xl">🎪</span>
-                <span>Associations</span>
-              </Link>
-              <Link
-                to="/leaderboard"
-                onClick={closeMenu}
-                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
-              >
-                <span className="text-xl">📊</span>
-                <span>Classement</span>
-              </Link>
-              <Link
-                to="/report"
-                onClick={closeMenu}
-                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
-              >
-                <span className="text-xl">🚨</span>
-                <span>Signaler un problème</span>
-              </Link>
               <StudentAuthButtonMobile onClose={closeMenu} />
             </nav>
           </div>

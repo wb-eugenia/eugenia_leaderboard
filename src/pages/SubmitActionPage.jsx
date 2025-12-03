@@ -242,6 +242,7 @@ export default function SubmitActionPage({ school = 'eugenia' }) {
           </div>
         </div>
       </div>
+      </div>
     </PageLayout>
   );
 }
