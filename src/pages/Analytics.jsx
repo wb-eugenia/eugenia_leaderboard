@@ -9,14 +9,14 @@ import InsightsCards from '../components/analytics/InsightsCards';
 import AnalyticsFilters from '../components/analytics/AnalyticsFilters';
 import useAnalytics from '../hooks/useAnalytics';
 
-export default function Analytics() {
+export default function Analytics({ school = 'eugenia' }) {
   const [filters, setFilters] = useState({
     period: '30d',
     classes: [],
     actionTypes: [],
   });
 
-  const { data, loading, error, refetch } = useAnalytics(filters);
+  const { data, loading, error, refetch } = useAnalytics(filters, school);
 
   if (loading) {
     return (

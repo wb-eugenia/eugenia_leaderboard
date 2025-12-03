@@ -1,6 +1,63 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import EugeniaLogo from './EugeniaLogo';
+                                                                                          import { useStudentAuth } from '../../contexts/StudentAuthContext';
+
+function StudentAuthButton() {
+  const { student } = useStudentAuth();
+  
+  if (student) {
+    // Déterminer l'école à partir de l'email de l'étudiant
+    const schoolPath = student.school === 'albert' ? '/albert-school' : '/eugenia-school';
+    return (
+      <Link 
+        to={`${schoolPath}/student/profile`}
+        className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
+      >
+        👤 Mon profil
+      </Link>
+    );
+  }
+  
+  return (
+    <Link 
+      to="/student/login" 
+      className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
+    >
+      🔐 Connexion
+    </Link>
+  );
+}
+
+function StudentAuthButtonMobile({ onClose }) {
+  const { student } = useStudentAuth();
+  
+  if (student) {
+    // Déterminer l'école à partir de l'email de l'étudiant
+    const schoolPath = student.school === 'albert' ? '/albert-school' : '/eugenia-school';
+    return (
+      <Link
+        to={`${schoolPath}/student/profile`}
+        onClick={onClose}
+        className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
+      >
+        <span className="text-xl">👤</span>
+        <span>Mon profil</span>
+      </Link>
+    );
+  }
+  
+  return (
+    <Link
+      to="/student/login"
+      onClick={onClose}
+      className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
+    >
+      <span className="text-xl">🔐</span>
+      <span>Connexion</span>
+    </Link>
+  );
+}
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -42,7 +99,25 @@ export default function Header() {
           </Link>
           
           {/* Liens navigation - Desktop seulement */}
-          <div className="hidden md:flex gap-6">
+          <div className="hidden md:flex gap-6 items-center">
+            <Link 
+              to="/portfolio" 
+              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
+            >
+              📁 Portfolio
+            </Link>
+            <Link 
+              to="/ambassadeurs" 
+              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
+            >
+              🌟 Ambassadeurs
+            </Link>
+            <Link 
+              to="/associations" 
+              className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
+            >
+              🎪 Associations
+            </Link>
             <Link 
               to="/leaderboard" 
               className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
@@ -50,11 +125,12 @@ export default function Header() {
               📊 Classement
             </Link>
             <Link 
-              to="/submit" 
+              to="/report" 
               className="text-white font-semibold hover:text-eugenia-yellow transition-colors"
             >
-              ➕ Participer
+              🚨 Signaler
             </Link>
+            <StudentAuthButton />
           </div>
           
           {/* Espaceur invisible pour équilibrer sur mobile */}
@@ -89,6 +165,30 @@ export default function Header() {
             {/* Liens du menu */}
             <nav className="py-4">
               <Link
+                to="/portfolio"
+                onClick={closeMenu}
+                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
+              >
+                <span className="text-xl">📁</span>
+                <span>Portfolio</span>
+              </Link>
+              <Link
+                to="/ambassadeurs"
+                onClick={closeMenu}
+                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
+              >
+                <span className="text-xl">🌟</span>
+                <span>Ambassadeurs</span>
+              </Link>
+              <Link
+                to="/associations"
+                onClick={closeMenu}
+                className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
+              >
+                <span className="text-xl">🎪</span>
+                <span>Associations</span>
+              </Link>
+              <Link
                 to="/leaderboard"
                 onClick={closeMenu}
                 className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
@@ -97,13 +197,14 @@ export default function Header() {
                 <span>Classement</span>
               </Link>
               <Link
-                to="/submit"
+                to="/report"
                 onClick={closeMenu}
                 className="block px-6 py-4 text-gray-800 hover:bg-gray-100 hover:text-eugenia-burgundy transition-colors font-semibold flex items-center gap-2"
               >
-                <span className="text-xl">➕</span>
-                <span>Participer</span>
+                <span className="text-xl">🚨</span>
+                <span>Signaler un problème</span>
               </Link>
+              <StudentAuthButtonMobile onClose={closeMenu} />
             </nav>
           </div>
         </>

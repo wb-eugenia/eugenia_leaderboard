@@ -108,6 +108,36 @@ async function getLeaderboard(env: Env): Promise<Response> {
 }
 
 /**
+ * GET /leaderboard/check?email=xxx - Vérifie si un étudiant existe dans la base de données
+ */
+async function checkStudentExists(env: Env, email: string): Promise<Response> {
+  try {
+    const student = await env.DB.prepare(
+      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update FROM leaderboard WHERE email = ?'
+    ).bind(email.toLowerCase()).first() as any;
+
+    if (student) {
+      return jsonResponse({
+        exists: true,
+        student: {
+          firstName: student.first_name,
+          lastName: student.last_name,
+          email: student.email,
+          classe: student.classe || '',
+          totalPoints: student.total_points || 0,
+          actionsCount: student.actions_count || 0,
+          lastUpdate: student.last_update || '',
+        }
+      });
+    } else {
+      return jsonResponse({ exists: false });
+    }
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
  * Helper: Get Google OAuth credentials from DB (like n8n)
  */
 async function getGoogleOAuthCredentials(env: Env): Promise<{ clientId: string; clientSecret: string } | null> {
@@ -2201,6 +2231,22 @@ export default {
     }
 
     try {
+      // Route: GET /leaderboard/check?email=xxx - Vérifier si un étudiant existe
+      if (url.pathname === '/leaderboard/check' && request.method === 'GET') {
+        const email = url.searchParams.get('email');
+        if (!email) {
+          return new Response(JSON.stringify({ error: 'Email parameter required' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json', ...corsHeaders() },
+          });
+        }
+        const response = await checkStudentExists(env, email);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
       // Route: GET /leaderboard
       if (url.pathname === '/leaderboard' && request.method === 'GET') {
         const response = await getLeaderboard(env);
@@ -2545,6 +2591,241 @@ export default {
         });
       }
 
+      // Route: POST /reports - Créer un signalement
+      if (url.pathname === '/reports' && request.method === 'POST') {
+        const response = await createReport(env, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /reports - Récupérer tous les signalements
+      if (url.pathname === '/reports' && request.method === 'GET') {
+        const response = await getReports(env);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: PATCH /reports/:id - Mettre à jour le statut d'un signalement
+      if (url.pathname.startsWith('/reports/') && request.method === 'PATCH') {
+        const reportId = url.pathname.split('/')[2];
+        const response = await updateReportStatus(env, reportId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: DELETE /reports/:id - Supprimer un signalement
+      if (url.pathname.startsWith('/reports/') && request.method === 'DELETE') {
+        const reportId = url.pathname.split('/')[2];
+        const response = await deleteReport(env, reportId);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // ========== ASSOCIATIONS ROUTES ==========
+
+      // Route: GET /associations
+      if (url.pathname === '/associations' && request.method === 'GET') {
+        const response = await getAllAssociations(env);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /associations
+      if (url.pathname === '/associations' && request.method === 'POST') {
+        const response = await createAssociation(env, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /associations/:id
+      if (url.pathname.startsWith('/associations/') && request.method === 'GET' && !url.pathname.includes('/members') && !url.pathname.includes('/apply') && !url.pathname.includes('/applications') && !url.pathname.includes('/events')) {
+        const associationId = url.pathname.split('/')[2];
+        const response = await getAssociationById(env, associationId);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: PUT /associations/:id
+      if (url.pathname.startsWith('/associations/') && request.method === 'PUT' && !url.pathname.includes('/members') && !url.pathname.includes('/events')) {
+        const associationId = url.pathname.split('/')[2];
+        const response = await updateAssociation(env, associationId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: DELETE /associations/:id
+      if (url.pathname.startsWith('/associations/') && request.method === 'DELETE' && !url.pathname.includes('/members') && !url.pathname.includes('/events')) {
+        const associationId = url.pathname.split('/')[2];
+        const email = url.searchParams.get('email') || '';
+        const response = await deleteAssociation(env, associationId, email);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /associations/:id/members
+      if (url.pathname.match(/^\/associations\/\d+\/members$/) && request.method === 'GET') {
+        const associationId = url.pathname.split('/')[2];
+        const response = await getAssociationMembers(env, associationId);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /associations/:id/members
+      if (url.pathname.match(/^\/associations\/\d+\/members$/) && request.method === 'POST') {
+        const associationId = url.pathname.split('/')[2];
+        const response = await addAssociationMember(env, associationId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: DELETE /associations/:id/members/:email
+      if (url.pathname.match(/^\/associations\/\d+\/members\/.+$/) && request.method === 'DELETE') {
+        const parts = url.pathname.split('/');
+        const associationId = parts[2];
+        const email = decodeURIComponent(parts[4]);
+        const requesterEmail = url.searchParams.get('requesterEmail') || '';
+        const response = await removeAssociationMember(env, associationId, email, requesterEmail);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: PUT /associations/:id/members/:email/role
+      if (url.pathname.match(/^\/associations\/\d+\/members\/.+\/role$/) && request.method === 'PUT') {
+        const parts = url.pathname.split('/');
+        const associationId = parts[2];
+        const email = decodeURIComponent(parts[4]);
+        const response = await updateMemberRole(env, associationId, email, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /associations/:id/apply
+      if (url.pathname.match(/^\/associations\/\d+\/apply$/) && request.method === 'POST') {
+        const associationId = url.pathname.split('/')[2];
+        const response = await applyToAssociation(env, associationId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /associations/:id/applications
+      if (url.pathname.match(/^\/associations\/\d+\/applications$/) && request.method === 'GET') {
+        const associationId = url.pathname.split('/')[2];
+        const email = url.searchParams.get('email') || '';
+        const response = await getAssociationApplications(env, associationId, email);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /associations/:id/applications/:applicationId/accept
+      if (url.pathname.match(/^\/associations\/\d+\/applications\/\d+\/accept$/) && request.method === 'POST') {
+        const parts = url.pathname.split('/');
+        const associationId = parts[2];
+        const applicationId = parts[4];
+        const response = await acceptApplication(env, associationId, applicationId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /associations/:id/applications/:applicationId/reject
+      if (url.pathname.match(/^\/associations\/\d+\/applications\/\d+\/reject$/) && request.method === 'POST') {
+        const parts = url.pathname.split('/');
+        const associationId = parts[2];
+        const applicationId = parts[4];
+        const response = await rejectApplication(env, associationId, applicationId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /associations/:id/events
+      if (url.pathname.match(/^\/associations\/\d+\/events$/) && request.method === 'GET') {
+        const associationId = url.pathname.split('/')[2];
+        const response = await getAssociationEvents(env, associationId);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /associations/:id/events
+      if (url.pathname.match(/^\/associations\/\d+\/events$/) && request.method === 'POST') {
+        const associationId = url.pathname.split('/')[2];
+        const response = await createAssociationEvent(env, associationId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: PUT /associations/:id/events/:eventId
+      if (url.pathname.match(/^\/associations\/\d+\/events\/\d+$/) && request.method === 'PUT') {
+        const parts = url.pathname.split('/');
+        const associationId = parts[2];
+        const eventId = parts[4];
+        const response = await updateAssociationEvent(env, associationId, eventId, request);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: DELETE /associations/:id/events/:eventId
+      if (url.pathname.match(/^\/associations\/\d+\/events\/\d+$/) && request.method === 'DELETE') {
+        const parts = url.pathname.split('/');
+        const associationId = parts[2];
+        const eventId = parts[4];
+        const email = url.searchParams.get('email') || '';
+        const response = await deleteAssociationEvent(env, associationId, eventId, email);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /events - Tous les événements (pour le calendrier)
+      if (url.pathname === '/events' && request.method === 'GET') {
+        const month = url.searchParams.get('month');
+        const year = url.searchParams.get('year');
+        const response = await getAllEvents(env, month || undefined, year || undefined);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
       return jsonResponse({ error: 'Not found' }, 404);
     } catch (error: any) {
       return jsonResponse({ error: error.message }, 500);
@@ -2729,6 +3010,810 @@ async function disconnectGoogleOAuth(env: Env): Promise<Response> {
     return jsonResponse({ success: true });
   } catch (error: any) {
     return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /reports - Créer un signalement
+ */
+async function createReport(env: Env, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      title: string;
+      description: string;
+      location: string;
+      category: string;
+      photo?: string;
+      studentEmail: string;
+      studentName: string;
+    };
+
+    if (!body.title || !body.description || !body.location || !body.category) {
+      return jsonResponse({ success: false, error: 'Champs manquants' }, 400);
+    }
+
+    const reportId = `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(
+      `INSERT INTO reports (id, title, description, location, category, photo, student_email, student_name, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`
+    ).bind(
+      reportId,
+      body.title,
+      body.description,
+      body.location,
+      body.category,
+      body.photo || null,
+      body.studentEmail,
+      body.studentName,
+      now,
+      now
+    ).run();
+
+    return jsonResponse({ success: true, id: reportId });
+  } catch (error: any) {
+    console.error('Error creating report:', error);
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /reports - Récupérer tous les signalements
+ */
+async function getReports(env: Env): Promise<Response> {
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT * FROM reports ORDER BY created_at DESC'
+    ).all();
+
+    const reports = results.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      location: r.location,
+      category: r.category,
+      photo: r.photo,
+      studentEmail: r.student_email,
+      studentName: r.student_name,
+      status: r.status || 'pending',
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    }));
+
+    return jsonResponse(reports);
+  } catch (error: any) {
+    console.error('Error getting reports:', error);
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * PATCH /reports/:id - Mettre à jour le statut d'un signalement
+ */
+async function updateReportStatus(env: Env, reportId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as { status: string };
+    
+    if (!['pending', 'in_progress', 'resolved'].includes(body.status)) {
+      return jsonResponse({ success: false, error: 'Statut invalide' }, 400);
+    }
+
+    const now = new Date().toISOString();
+    
+    await env.DB.prepare(
+      'UPDATE reports SET status = ?, updated_at = ? WHERE id = ?'
+    ).bind(body.status, now, reportId).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    console.error('Error updating report:', error);
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * DELETE /reports/:id - Supprimer un signalement
+ */
+async function deleteReport(env: Env, reportId: string): Promise<Response> {
+  try {
+    await env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(reportId).run();
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    console.error('Error deleting report:', error);
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * Helper: Vérifier si un utilisateur est admin d'une association
+ */
+async function isAssociationAdmin(env: Env, associationId: number, email: string): Promise<boolean> {
+  try {
+    const member = await env.DB.prepare(
+      'SELECT role FROM association_members WHERE association_id = ? AND student_email = ? AND status = "active"'
+    ).bind(associationId, email.toLowerCase()).first() as any;
+    
+    return member?.role === 'admin';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * GET /associations - Liste toutes les associations avec compteur de membres
+ */
+async function getAllAssociations(env: Env): Promise<Response> {
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT a.*, 
+       COUNT(DISTINCT am.id) as members_count
+       FROM associations a
+       LEFT JOIN association_members am ON a.id = am.association_id AND am.status = 'active'
+       GROUP BY a.id
+       ORDER BY members_count DESC, a.name ASC`
+    ).all();
+
+    const associations = (results || []).map((asso: any) => ({
+      id: asso.id,
+      name: asso.name,
+      emoji: asso.emoji || '🤝',
+      description: asso.description || '',
+      category: asso.category || 'Autre',
+      createdBy: asso.created_by,
+      membersCount: asso.members_count || 0,
+      createdAt: asso.created_at,
+      updatedAt: asso.updated_at
+    }));
+
+    return jsonResponse(associations);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /associations/:id - Détails d'une association
+ */
+async function getAssociationById(env: Env, associationId: string): Promise<Response> {
+  try {
+    const association = await env.DB.prepare(
+      `SELECT a.*, 
+       COUNT(DISTINCT am.id) as members_count
+       FROM associations a
+       LEFT JOIN association_members am ON a.id = am.association_id AND am.status = 'active'
+       WHERE a.id = ?
+       GROUP BY a.id`
+    ).bind(associationId).first() as any;
+
+    if (!association) {
+      return jsonResponse({ error: 'Association not found' }, 404);
+    }
+
+    return jsonResponse({
+      id: association.id,
+      name: association.name,
+      emoji: association.emoji || '🤝',
+      description: association.description || '',
+      category: association.category || 'Autre',
+      createdBy: association.created_by,
+      membersCount: association.members_count || 0,
+      createdAt: association.created_at,
+      updatedAt: association.updated_at
+    });
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /associations - Créer une association
+ */
+async function createAssociation(env: Env, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      name: string;
+      emoji?: string;
+      description?: string;
+      category?: string;
+      createdBy: string;
+    };
+
+    if (!body.name || !body.createdBy) {
+      return jsonResponse({ success: false, error: 'Name and createdBy are required' }, 400);
+    }
+
+    const result = await env.DB.prepare(
+      `INSERT INTO associations (name, emoji, description, category, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).bind(
+      body.name,
+      body.emoji || '🤝',
+      body.description || '',
+      body.category || 'Autre',
+      body.createdBy.toLowerCase()
+    ).run();
+
+    // Créer le créateur comme admin
+    await env.DB.prepare(
+      `INSERT INTO association_members (association_id, student_email, role, joined_at, status)
+       VALUES (?, ?, 'admin', CURRENT_TIMESTAMP, 'active')`
+    ).bind(result.meta.last_row_id, body.createdBy.toLowerCase()).run();
+
+    return jsonResponse({ success: true, id: result.meta.last_row_id });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * PUT /associations/:id - Modifier une association (admin seulement)
+ */
+async function updateAssociation(env: Env, associationId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      name?: string;
+      emoji?: string;
+      description?: string;
+      category?: string;
+      email?: string; // Email de l'utilisateur qui fait la requête
+    };
+
+    // Vérifier les permissions
+    if (body.email) {
+      const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.email);
+      if (!isAdmin) {
+        return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+      }
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (body.name) {
+      updates.push('name = ?');
+      values.push(body.name);
+    }
+    if (body.emoji) {
+      updates.push('emoji = ?');
+      values.push(body.emoji);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      values.push(body.description);
+    }
+    if (body.category) {
+      updates.push('category = ?');
+      values.push(body.category);
+    }
+
+    if (updates.length === 0) {
+      return jsonResponse({ success: false, error: 'No fields to update' }, 400);
+    }
+
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    values.push(associationId);
+
+    await env.DB.prepare(
+      `UPDATE associations SET ${updates.join(', ')} WHERE id = ?`
+    ).bind(...values).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * DELETE /associations/:id - Supprimer une association (admin seulement)
+ */
+async function deleteAssociation(env: Env, associationId: string, email: string): Promise<Response> {
+  try {
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), email);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    await env.DB.prepare('DELETE FROM associations WHERE id = ?').bind(associationId).run();
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /associations/:id/members - Liste des membres d'une association
+ */
+async function getAssociationMembers(env: Env, associationId: string): Promise<Response> {
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT am.*, l.first_name, l.last_name
+       FROM association_members am
+       LEFT JOIN leaderboard l ON am.student_email = l.email
+       WHERE am.association_id = ? AND am.status = 'active'
+       ORDER BY am.role DESC, am.joined_at ASC`
+    ).bind(associationId).all();
+
+    const members = (results || []).map((member: any) => ({
+      id: member.id,
+      email: member.student_email,
+      firstName: member.first_name || '',
+      lastName: member.last_name || '',
+      role: member.role,
+      joinedAt: member.joined_at
+    }));
+
+    return jsonResponse(members);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /associations/:id/members - Ajouter un membre (admin seulement)
+ */
+async function addAssociationMember(env: Env, associationId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      email: string;
+      role?: string;
+      adminEmail?: string; // Email de l'admin qui fait la requête
+    };
+
+    if (!body.email) {
+      return jsonResponse({ success: false, error: 'Email is required' }, 400);
+    }
+
+    // Vérifier les permissions
+    if (body.adminEmail) {
+      const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.adminEmail);
+      if (!isAdmin) {
+        return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+      }
+    }
+
+    // Vérifier si le membre existe déjà
+    const existing = await env.DB.prepare(
+      'SELECT id FROM association_members WHERE association_id = ? AND student_email = ?'
+    ).bind(associationId, body.email.toLowerCase()).first();
+
+    if (existing) {
+      // Réactiver le membre s'il était inactif
+      await env.DB.prepare(
+        `UPDATE association_members 
+         SET status = 'active', role = ?, joined_at = CURRENT_TIMESTAMP
+         WHERE association_id = ? AND student_email = ?`
+      ).bind(body.role || 'member', associationId, body.email.toLowerCase()).run();
+    } else {
+      await env.DB.prepare(
+        `INSERT INTO association_members (association_id, student_email, role, joined_at, status)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP, 'active')`
+      ).bind(associationId, body.email.toLowerCase(), body.role || 'member').run();
+    }
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * DELETE /associations/:id/members/:email - Retirer un membre
+ */
+async function removeAssociationMember(env: Env, associationId: string, email: string, requesterEmail: string): Promise<Response> {
+  try {
+    // Vérifier les permissions : admin ou le membre lui-même
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), requesterEmail);
+    const isSelf = requesterEmail.toLowerCase() === email.toLowerCase();
+
+    if (!isAdmin && !isSelf) {
+      return jsonResponse({ success: false, error: 'Unauthorized' }, 403);
+    }
+
+    await env.DB.prepare(
+      'UPDATE association_members SET status = "inactive" WHERE association_id = ? AND student_email = ?'
+    ).bind(associationId, email.toLowerCase()).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * PUT /associations/:id/members/:email/role - Changer le rôle (admin seulement)
+ */
+async function updateMemberRole(env: Env, associationId: string, email: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      role: string;
+      adminEmail: string; // Email de l'admin qui fait la requête
+    };
+
+    if (!['member', 'admin'].includes(body.role)) {
+      return jsonResponse({ success: false, error: 'Invalid role' }, 400);
+    }
+
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.adminEmail);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    await env.DB.prepare(
+      'UPDATE association_members SET role = ? WHERE association_id = ? AND student_email = ?'
+    ).bind(body.role, associationId, email.toLowerCase()).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /associations/:id/apply - Postuler à une association
+ */
+async function applyToAssociation(env: Env, associationId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      email: string;
+      message?: string;
+    };
+
+    if (!body.email) {
+      return jsonResponse({ success: false, error: 'Email is required' }, 400);
+    }
+
+    // Vérifier si l'association existe
+    const association = await env.DB.prepare('SELECT id FROM associations WHERE id = ?').bind(associationId).first();
+    if (!association) {
+      return jsonResponse({ success: false, error: 'Association not found' }, 404);
+    }
+
+    // Vérifier si l'étudiant est déjà membre
+    const existingMember = await env.DB.prepare(
+      'SELECT id FROM association_members WHERE association_id = ? AND student_email = ? AND status = "active"'
+    ).bind(associationId, body.email.toLowerCase()).first();
+
+    if (existingMember) {
+      return jsonResponse({ success: false, error: 'Already a member of this association' }, 400);
+    }
+
+    // Vérifier si une candidature est déjà en attente
+    const existingApplication = await env.DB.prepare(
+      'SELECT id FROM association_applications WHERE association_id = ? AND student_email = ? AND status = "pending"'
+    ).bind(associationId, body.email.toLowerCase()).first();
+
+    if (existingApplication) {
+      return jsonResponse({ success: false, error: 'Application already pending' }, 400);
+    }
+
+    await env.DB.prepare(
+      `INSERT INTO association_applications (association_id, student_email, message, status, applied_at)
+       VALUES (?, ?, ?, 'pending', CURRENT_TIMESTAMP)`
+    ).bind(associationId, body.email.toLowerCase(), body.message || '').run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /associations/:id/applications - Liste des candidatures (admin seulement)
+ */
+async function getAssociationApplications(env: Env, associationId: string, email: string): Promise<Response> {
+  try {
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), email);
+    if (!isAdmin) {
+      return jsonResponse({ error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    const { results } = await env.DB.prepare(
+      `SELECT aa.*, l.first_name, l.last_name
+       FROM association_applications aa
+       LEFT JOIN leaderboard l ON aa.student_email = l.email
+       WHERE aa.association_id = ?
+       ORDER BY aa.applied_at DESC`
+    ).bind(associationId).all();
+
+    const applications = (results || []).map((app: any) => ({
+      id: app.id,
+      email: app.student_email,
+      firstName: app.first_name || '',
+      lastName: app.last_name || '',
+      message: app.message || '',
+      status: app.status,
+      appliedAt: app.applied_at,
+      reviewedAt: app.reviewed_at,
+      reviewedBy: app.reviewed_by
+    }));
+
+    return jsonResponse(applications);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /associations/:id/applications/:applicationId/accept - Accepter une candidature
+ */
+async function acceptApplication(env: Env, associationId: string, applicationId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      adminEmail: string;
+    };
+
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.adminEmail);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    // Récupérer la candidature
+    const application = await env.DB.prepare(
+      'SELECT * FROM association_applications WHERE id = ? AND association_id = ?'
+    ).bind(applicationId, associationId).first() as any;
+
+    if (!application) {
+      return jsonResponse({ success: false, error: 'Application not found' }, 404);
+    }
+
+    if (application.status !== 'pending') {
+      return jsonResponse({ success: false, error: 'Application already processed' }, 400);
+    }
+
+    // Mettre à jour la candidature
+    await env.DB.prepare(
+      `UPDATE association_applications 
+       SET status = 'accepted', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
+       WHERE id = ?`
+    ).bind(body.adminEmail.toLowerCase(), applicationId).run();
+
+    // Ajouter le membre
+    await env.DB.prepare(
+      `INSERT INTO association_members (association_id, student_email, role, joined_at, status)
+       VALUES (?, ?, 'member', CURRENT_TIMESTAMP, 'active')`
+    ).bind(associationId, application.student_email).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /associations/:id/applications/:applicationId/reject - Rejeter une candidature
+ */
+async function rejectApplication(env: Env, associationId: string, applicationId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      adminEmail: string;
+    };
+
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.adminEmail);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    // Récupérer la candidature
+    const application = await env.DB.prepare(
+      'SELECT * FROM association_applications WHERE id = ? AND association_id = ?'
+    ).bind(applicationId, associationId).first() as any;
+
+    if (!application) {
+      return jsonResponse({ success: false, error: 'Application not found' }, 404);
+    }
+
+    if (application.status !== 'pending') {
+      return jsonResponse({ success: false, error: 'Application already processed' }, 400);
+    }
+
+    // Mettre à jour la candidature
+    await env.DB.prepare(
+      `UPDATE association_applications 
+       SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = ?
+       WHERE id = ?`
+    ).bind(body.adminEmail.toLowerCase(), applicationId).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /associations/:id/events - Liste des événements d'une association
+ */
+async function getAssociationEvents(env: Env, associationId: string): Promise<Response> {
+  try {
+    const { results } = await env.DB.prepare(
+      'SELECT * FROM association_events WHERE association_id = ? ORDER BY date ASC, time ASC'
+    ).bind(associationId).all();
+
+    const events = (results || []).map((event: any) => ({
+      id: event.id,
+      associationId: event.association_id,
+      title: event.title,
+      description: event.description || '',
+      date: event.date,
+      time: event.time || '',
+      location: event.location || '',
+      createdBy: event.created_by,
+      createdAt: event.created_at
+    }));
+
+    return jsonResponse(events);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * POST /associations/:id/events - Créer un événement (admin seulement)
+ */
+async function createAssociationEvent(env: Env, associationId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      title: string;
+      description?: string;
+      date: string;
+      time?: string;
+      location?: string;
+      createdBy: string;
+    };
+
+    if (!body.title || !body.date || !body.createdBy) {
+      return jsonResponse({ success: false, error: 'Title, date and createdBy are required' }, 400);
+    }
+
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.createdBy);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    const result = await env.DB.prepare(
+      `INSERT INTO association_events (association_id, title, description, date, time, location, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(
+      associationId,
+      body.title,
+      body.description || '',
+      body.date,
+      body.time || '',
+      body.location || '',
+      body.createdBy.toLowerCase()
+    ).run();
+
+    return jsonResponse({ success: true, id: result.meta.last_row_id });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * PUT /associations/:id/events/:eventId - Modifier un événement (admin seulement)
+ */
+async function updateAssociationEvent(env: Env, associationId: string, eventId: string, request: Request): Promise<Response> {
+  try {
+    const body = await request.json() as {
+      title?: string;
+      description?: string;
+      date?: string;
+      time?: string;
+      location?: string;
+      email: string; // Email de l'admin
+    };
+
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), body.email);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (body.title) {
+      updates.push('title = ?');
+      values.push(body.title);
+    }
+    if (body.description !== undefined) {
+      updates.push('description = ?');
+      values.push(body.description);
+    }
+    if (body.date) {
+      updates.push('date = ?');
+      values.push(body.date);
+    }
+    if (body.time !== undefined) {
+      updates.push('time = ?');
+      values.push(body.time);
+    }
+    if (body.location !== undefined) {
+      updates.push('location = ?');
+      values.push(body.location);
+    }
+
+    if (updates.length === 0) {
+      return jsonResponse({ success: false, error: 'No fields to update' }, 400);
+    }
+
+    values.push(eventId, associationId);
+
+    await env.DB.prepare(
+      `UPDATE association_events SET ${updates.join(', ')} WHERE id = ? AND association_id = ?`
+    ).bind(...values).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * DELETE /associations/:id/events/:eventId - Supprimer un événement (admin seulement)
+ */
+async function deleteAssociationEvent(env: Env, associationId: string, eventId: string, email: string): Promise<Response> {
+  try {
+    // Vérifier les permissions
+    const isAdmin = await isAssociationAdmin(env, parseInt(associationId), email);
+    if (!isAdmin) {
+      return jsonResponse({ success: false, error: 'Unauthorized: Admin access required' }, 403);
+    }
+
+    await env.DB.prepare('DELETE FROM association_events WHERE id = ? AND association_id = ?')
+      .bind(eventId, associationId).run();
+
+    return jsonResponse({ success: true });
+  } catch (error: any) {
+    return jsonResponse({ success: false, error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /events - Tous les événements (pour le calendrier)
+ */
+async function getAllEvents(env: Env, month?: string, year?: string): Promise<Response> {
+  try {
+    let query = `
+      SELECT ae.*, a.name as association_name, a.emoji as association_emoji
+      FROM association_events ae
+      JOIN associations a ON ae.association_id = a.id
+    `;
+
+    const params: any[] = [];
+
+    if (month && year) {
+      query += ' WHERE strftime("%m", ae.date) = ? AND strftime("%Y", ae.date) = ?';
+      params.push(month.padStart(2, '0'), year);
+    }
+
+    query += ' ORDER BY ae.date ASC, ae.time ASC';
+
+    const { results } = await env.DB.prepare(query).bind(...params).all();
+
+    const events = (results || []).map((event: any) => ({
+      id: event.id,
+      associationId: event.association_id,
+      associationName: event.association_name,
+      associationEmoji: event.association_emoji,
+      title: event.title,
+      description: event.description || '',
+      date: event.date,
+      time: event.time || '',
+      location: event.location || '',
+      createdBy: event.created_by,
+      createdAt: event.created_at
+    }));
+
+    return jsonResponse(events);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
   }
 }
 

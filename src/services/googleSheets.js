@@ -212,7 +212,7 @@ export async function submitAction(actionData) {
 /**
  * Récupère toutes les actions
  */
-export async function getAllActions() {
+export async function getAllActions(school = null) {
   return getCachedOrFetch('actions_all', async () => {
     if (USE_API) {
       try {
@@ -221,7 +221,16 @@ export async function getAllActions() {
           : `${API_URL}?action=getAllActions`;
         const response = await fetch(url);
         const text = await response.text();
-        const data = JSON.parse(text);
+        const parsed = JSON.parse(text);
+        
+        // Extract data from new API format
+        const data = extractData(parsed);
+        
+        if (!Array.isArray(data)) {
+          console.warn('Actions response is not an array:', data);
+          return getStoredActions();
+        }
+        
         // Parse data field if it's a string
         return data.map(action => ({
           ...action,
@@ -238,7 +247,7 @@ export async function getAllActions() {
 /**
  * Récupère les actions à valider (status = pending)
  */
-export async function getActionsToValidate() {
+export async function getActionsToValidate(school = null) {
   return getCachedOrFetch('actions_pending', async () => {
     if (USE_API) {
       try {
@@ -247,7 +256,17 @@ export async function getActionsToValidate() {
           : `${API_URL}?action=getActionsToValidate`;
         const response = await fetch(url);
         const text = await response.text();
-        const data = JSON.parse(text);
+        const parsed = JSON.parse(text);
+        
+        // Extract data from new API format
+        const data = extractData(parsed);
+        
+        if (!Array.isArray(data)) {
+          console.warn('Pending actions response is not an array:', data);
+          const actions = getStoredActions();
+          return actions.filter(action => action.status === 'pending');
+        }
+        
         // Parse data field if it's a string
         return data.map(action => ({
           ...action,
@@ -484,9 +503,21 @@ export async function updateLeaderboard(email, points) {
 }
 
 /**
+ * Helper: Extract data from API response (handles both old and new format)
+ */
+function extractData(response) {
+  // New format: { success: true, data: [...], meta: {...} }
+  if (response && typeof response === 'object' && 'data' in response) {
+    return response.data;
+  }
+  // Old format: direct array or object
+  return response;
+}
+
+/**
  * Récupère le leaderboard
  */
-export async function getLeaderboard() {
+export async function getLeaderboard(school = null) {
   return getCachedOrFetch('leaderboard', async () => {
     let leaderboard;
     
@@ -497,7 +528,17 @@ export async function getLeaderboard() {
           : `${API_URL}?action=getLeaderboard`;
         const response = await fetch(url);
         const text = await response.text();
-        leaderboard = JSON.parse(text);
+        const parsed = JSON.parse(text);
+        
+        // Extract data from new API format
+        leaderboard = extractData(parsed);
+        
+        // Ensure it's an array
+        if (!Array.isArray(leaderboard)) {
+          console.warn('Leaderboard response is not an array:', leaderboard);
+          leaderboard = [];
+        }
+        
         // D1 API already returns with ranks, but ensure compatibility
         if (leaderboard && leaderboard.length > 0 && !leaderboard[0].rank) {
           // If no rank, add it
@@ -517,14 +558,20 @@ export async function getLeaderboard() {
       leaderboard = getStoredLeaderboard();
     }
     
+    // Ensure leaderboard is an array
+    if (!Array.isArray(leaderboard)) {
+      console.warn('Leaderboard is not an array, using empty array');
+      leaderboard = [];
+    }
+    
     // Trier par points décroissant (if not already sorted)
-    const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
+    const sorted = [...leaderboard].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
     
     // Ajouter le rang (gestion des ex aequo)
     let rank = 1;
     return sorted.map((user, index) => {
       // Si ce n'est pas le premier et que les points sont différents du précédent, augmenter le rang
-      if (index > 0 && user.totalPoints !== sorted[index - 1].totalPoints) {
+      if (index > 0 && (user.totalPoints || 0) !== (sorted[index - 1].totalPoints || 0)) {
         rank = index + 1;
       }
       return {

@@ -11,6 +11,15 @@
   --eugenia-pink: #E33054;
 }
 
+/* Charte graphique Albert School */
+:root {
+  --albert-blue-800: #1E40AF;
+  --albert-blue-500: #3B82F6;
+  --albert-blue-400: #60A5FA;
+  --albert-black: #000000;
+  --albert-white: #ffffff;
+}
+
 @layer base {
   * {
     @apply box-border;
@@ -178,5 +187,59 @@
     font-size: 1.25rem;
     padding: 0.75rem 1.5rem;
   }
+}
+
+/* Smooth scroll pour les ancres */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Force le fond noir pour toutes les sections hero des pages étudiantes */
+.student-hero-section,
+.ambassadeurs-hero {
+  background-color: #000000 !important;
+  background: #000000 !important;
+}
+
+/* Animations pour les sections */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+section {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* Hover effects pour les cards */
+.card {
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Styles pour les sections alternées */
+section:nth-child(even) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Amélioration des boutons avec gradient */
+.btn-primary {
+  background: linear-gradient(135deg, var(--eugenia-yellow) 0%, #FFD700 100%);
+  box-shadow: 0 4px 15px rgba(219, 161, 45, 0.4);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #FFD700 0%, var(--eugenia-yellow) 100%);
+  box-shadow: 0 6px 20px rgba(219, 161, 45, 0.6);
 }
 

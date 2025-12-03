@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#671324;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E33054;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="48" fill="url(#grad)"/>
+  <!-- Trophy icon -->
+  <path d="M35 30 L65 30 L65 35 L70 35 C73 35 75 37 75 40 L75 48 C75 53 71 57 66 57 L65 57 L65 60 C65 62 63 64 61 64 L61 70 L66 70 C68 70 70 72 70 74 L70 76 L30 76 L30 74 C30 72 32 70 34 70 L39 70 L39 64 C37 64 35 62 35 60 L35 57 L34 57 C29 57 25 53 25 48 L25 40 C25 37 27 35 30 35 L35 35 L35 30 Z" fill="white"/>
+  <!-- Star sparkle -->
+  <path d="M50 22 L52 26 L56 26 L53 29 L54 33 L50 31 L46 33 L47 29 L44 26 L48 26 Z" fill="#DBA12D"/>
+</svg>
+
+
+
+
+
+
+

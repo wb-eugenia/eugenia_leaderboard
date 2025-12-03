@@ -1,18 +1,26 @@
 import { useState, useEffect } from 'react';
 import { getActionTypes, saveActionType, deleteActionType } from '../../services/configService';
 
-export default function ActionTypeEditor() {
+export default function ActionTypeEditor({ school = 'eugenia' }) {
   const [actionTypes, setActionTypes] = useState([]);
   const [editingType, setEditingType] = useState(null);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     loadActionTypes();
-  }, []);
+  }, [school]);
 
   const loadActionTypes = async () => {
-    const types = await getActionTypes();
-    setActionTypes(types);
+    const allTypes = await getActionTypes();
+    // Filtrer par école
+    const filteredTypes = allTypes.filter(type => {
+      if (type.school) {
+        return type.school === school;
+      }
+      // Pour compatibilité, garder les types sans école
+      return true;
+    });
+    setActionTypes(filteredTypes);
   };
 
   const handleEdit = (type) => {
@@ -28,7 +36,8 @@ export default function ActionTypeEditor() {
       category: '',
       points: 50,
       autoValidation: false,
-      fields: []
+      fields: [],
+      school: school // Ajouter l'école au nouveau type
     });
     setShowForm(true);
   };
@@ -39,7 +48,13 @@ export default function ActionTypeEditor() {
       return;
     }
     
-    await saveActionType(editingType);
+    // Ajouter l'école au type d'action
+    const actionTypeWithSchool = {
+      ...editingType,
+      school: school
+    };
+    
+    await saveActionType(actionTypeWithSchool);
     await loadActionTypes();
     setShowForm(false);
     setEditingType(null);

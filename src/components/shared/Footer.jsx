@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
+import { useSchoolTheme } from '../../hooks/useSchoolTheme';
 import EugeniaLogo from './EugeniaLogo';
+import AlbertLogo from './AlbertLogo';
 
-export default function Footer() {
+export default function Footer({ school = 'eugenia' }) {
   const currentYear = new Date().getFullYear();
+  const theme = useSchoolTheme(school);
+  const schoolPath = school === 'eugenia' ? '/eugenia-school' : '/albert-school';
+  const Logo = school === 'eugenia' ? EugeniaLogo : AlbertLogo;
 
   return (
     <footer className="bg-black/40 backdrop-blur-lg border-t border-white/10 mt-auto">
@@ -10,8 +15,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
           {/* Section Logo & Description */}
           <div className="text-center md:text-left">
-            <Link to="/" className="inline-block mb-4 hover:opacity-80 transition-opacity">
-              <EugeniaLogo />
+            <Link to={schoolPath} className="inline-block mb-4 hover:opacity-80 transition-opacity">
+              <Logo />
             </Link>
             <p className="text-white/80 text-sm mb-4">
               Le challenge gamifié du campus Eugenia School. 
@@ -44,20 +49,23 @@ export default function Footer() {
             <h3 className="text-white font-bold text-lg mb-4">Navigation</h3>
             <nav className="flex flex-col gap-3">
               <Link 
-                to="/" 
-                className="text-white/80 hover:text-eugenia-yellow transition-colors text-sm"
+                to={schoolPath} 
+                className="text-white/80 hover:text-yellow-300 transition-colors text-sm"
+                style={{ '--hover-color': theme.accent }}
               >
                 🏠 Accueil
               </Link>
               <Link 
-                to="/leaderboard" 
-                className="text-white/80 hover:text-eugenia-yellow transition-colors text-sm"
+                to={`${schoolPath}/leaderboard`} 
+                className="text-white/80 hover:text-yellow-300 transition-colors text-sm"
+                style={{ '--hover-color': theme.accent }}
               >
                 📊 Classement
               </Link>
               <Link 
-                to="/submit" 
-                className="text-white/80 hover:text-eugenia-yellow transition-colors text-sm"
+                to={`${schoolPath}/submit`} 
+                className="text-white/80 hover:text-yellow-300 transition-colors text-sm"
+                style={{ '--hover-color': theme.accent }}
               >
                 ➕ Soumettre une action
               </Link>

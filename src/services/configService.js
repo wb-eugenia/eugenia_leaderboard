@@ -180,6 +180,18 @@ export function resetConfig() {
 }
 
 /**
+ * Helper: Extract data from API response (handles both old and new format)
+ */
+function extractApiData(response) {
+  // New format: { success: true, data: [...], meta: {...} }
+  if (response && typeof response === 'object' && 'data' in response) {
+    return response.data;
+  }
+  // Old format: direct array or object
+  return response;
+}
+
+/**
  * Obtient les types d'actions configurés
  */
 export async function getActionTypes() {
@@ -187,7 +199,8 @@ export async function getActionTypes() {
     try {
       const response = await fetch(`${API_URL}/action-types`);
       const text = await response.text();
-      const data = JSON.parse(text);
+      const parsed = JSON.parse(text);
+      const data = extractApiData(parsed);
       return Array.isArray(data) ? data : [];
     } catch (error) {
       console.warn('API fetch failed, using config fallback:', error);
@@ -314,7 +327,8 @@ export async function getAutomationRules() {
     try {
       const response = await fetch(`${API_URL}/automations`);
       const text = await response.text();
-      const data = JSON.parse(text);
+      const parsed = JSON.parse(text);
+      const data = extractApiData(parsed);
       return Array.isArray(data) ? data : [];
     } catch (error) {
       console.warn('API fetch failed, using config fallback:', error);

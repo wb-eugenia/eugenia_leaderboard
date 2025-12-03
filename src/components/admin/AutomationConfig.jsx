@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getActionTypes, getAutomationRules, saveAutomationRule, deleteAutomationRule } from '../../services/configService.js';
 import GoogleOAuthConnect from './GoogleOAuthConnect.jsx';
 
-export default function AutomationConfig() {
+export default function AutomationConfig({ school = 'eugenia' }) {
   const [automations, setAutomations] = useState([]);
   const [actionTypes, setActionTypes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,15 +25,36 @@ export default function AutomationConfig() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [school]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const rules = await getAutomationRules();
-      const types = await getActionTypes();
-      setAutomations(rules);
-      setActionTypes(types);
+      const allRules = await getAutomationRules();
+      const allTypes = await getActionTypes();
+      
+      // Filtrer par école
+      const filteredRules = allRules.filter(rule => {
+        // Si la règle a un champ school, filtrer par celui-ci
+        if (rule.school) {
+          return rule.school === school;
+        }
+        // Sinon, on garde les règles sans école pour compatibilité (ou on peut les supprimer)
+        // Pour l'instant, on les garde mais on devrait les migrer
+        return true;
+      });
+      
+      // Filtrer les types d'action par école
+      const filteredTypes = allTypes.filter(type => {
+        if (type.school) {
+          return type.school === school;
+        }
+        // Pour compatibilité, garder les types sans école
+        return true;
+      });
+      
+      setAutomations(filteredRules);
+      setActionTypes(filteredTypes);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -98,6 +119,7 @@ export default function AutomationConfig() {
       formFieldColumns: formData.formFieldColumns,
       formFieldRule: formData.formFieldRule,
       mappedColumns: formData.mappedColumns,
+      school: school, // Ajouter l'école à l'automatisation
       createdAt: editingAutomation?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

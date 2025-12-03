@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { getActionsToValidate, getAllActions, deleteAction, invalidateCache } from '../../services/googleSheets';
 import { getActionTypes } from '../../services/configService';
 import ActionDetailModal from './ActionDetailModal';
+import { SCHOOL_EMAIL_DOMAINS } from '../../constants/routes';
 
-export default function ValidationQueue() {
+export default function ValidationQueue({ school = 'eugenia' }) {
   const [pendingActions, setPendingActions] = useState([]);
   const [validatedActions, setValidatedActions] = useState([]);
   const [selectedAction, setSelectedAction] = useState(null);
@@ -13,27 +14,37 @@ export default function ValidationQueue() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [school]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       console.log('📥 Loading data...');
       
+      const emailDomain = SCHOOL_EMAIL_DOMAINS[school];
+      
       const [actions, types, allActions] = await Promise.all([
-        getActionsToValidate(),
+        getActionsToValidate(school),
         getActionTypes(),
-        getAllActions()
+        getAllActions(school)
       ]);
       
-      console.log('📥 Loaded pending actions:', actions.length);
-      console.log('📥 Loaded all actions:', allActions.length);
+      // Filtrer par école
+      const filteredActions = actions.filter(a => 
+        a.email && a.email.toLowerCase().includes(emailDomain)
+      );
+      const filteredAllActions = allActions.filter(a => 
+        a.email && a.email.toLowerCase().includes(emailDomain)
+      );
       
-      setPendingActions(actions);
+      console.log('📥 Loaded pending actions:', filteredActions.length);
+      console.log('📥 Loaded all actions:', filteredAllActions.length);
+      
+      setPendingActions(filteredActions);
       setActionTypes(types);
       
       // Filtrer les actions validées ou refusées
-      const validated = allActions.filter(a => 
+      const validated = filteredAllActions.filter(a => 
         a.status === 'validated' || a.status === 'rejected' || a.decision === 'validated' || a.decision === 'rejected'
       );
       
@@ -48,8 +59,13 @@ export default function ValidationQueue() {
 
   const loadPendingActions = async () => {
     try {
-      const actions = await getActionsToValidate();
-      setPendingActions(actions);
+      const emailDomain = SCHOOL_EMAIL_DOMAINS[school];
+      const actions = await getActionsToValidate(school);
+      // Filtrer par école
+      const filteredActions = actions.filter(a => 
+        a.email && a.email.toLowerCase().includes(emailDomain)
+      );
+      setPendingActions(filteredActions);
     } catch (error) {
       console.error('Error loading pending actions:', error);
     }

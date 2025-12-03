@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getActionsToValidate, getLeaderboard, getAllActions } from '../services/googleSheets';
+import { SCHOOL_EMAIL_DOMAINS, SCHOOL_NAMES } from '../constants/routes';
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ school = 'eugenia' }) {
   const [stats, setStats] = useState({
     pendingActions: 0,
     totalActions: 0,
@@ -20,7 +21,7 @@ export default function AdminDashboard() {
     loadRecentActivity();
     loadAlerts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [school]);
 
   useEffect(() => {
     applyActivityFilter();
@@ -28,16 +29,28 @@ export default function AdminDashboard() {
 
   const loadStats = async () => {
     try {
-      const pending = await getActionsToValidate();
-      const leaderboard = await getLeaderboard();
-      const actionsList = await getAllActions();
+      const pending = await getActionsToValidate(school);
+      const leaderboard = await getLeaderboard(school);
+      const actionsList = await getAllActions(school);
 
-      const totalPoints = leaderboard.reduce((sum, user) => sum + user.totalPoints, 0);
+      // Filtrer par école si nécessaire
+      const emailDomain = SCHOOL_EMAIL_DOMAINS[school];
+      const filteredPending = pending.filter(action => 
+        action.email && action.email.toLowerCase().includes(emailDomain)
+      );
+      const filteredLeaderboard = leaderboard.filter(user => 
+        user.email && user.email.toLowerCase().includes(emailDomain)
+      );
+      const filteredActions = actionsList.filter(action => 
+        action.email && action.email.toLowerCase().includes(emailDomain)
+      );
+
+      const totalPoints = filteredLeaderboard.reduce((sum, user) => sum + (user.totalPoints || 0), 0);
 
       setStats({
-        pendingActions: pending.length,
-        totalActions: actionsList.length,
-        totalUsers: leaderboard.length,
+        pendingActions: filteredPending.length,
+        totalActions: filteredActions.length,
+        totalUsers: filteredLeaderboard.length,
         totalPoints
       });
     } catch (error) {
@@ -48,10 +61,16 @@ export default function AdminDashboard() {
   const loadRecentActivity = async () => {
     try {
       setLoadingActivity(true);
-      const allActions = await getAllActions();
+      const allActions = await getAllActions(school);
+      
+      // Filtrer par école
+      const emailDomain = SCHOOL_EMAIL_DOMAINS[school];
+      const filteredActions = allActions.filter(action => 
+        action.email && action.email.toLowerCase().includes(emailDomain)
+      );
       
       // Trier par date
-      const sorted = allActions.sort((a, b) => {
+      const sorted = filteredActions.sort((a, b) => {
         const dateA = new Date(a.date || a.validatedAt || 0);
         const dateB = new Date(b.date || b.validatedAt || 0);
         return dateB - dateA;
@@ -80,19 +99,25 @@ export default function AdminDashboard() {
 
   const loadAlerts = async () => {
     try {
-      const allActions = await getAllActions();
+      const allActions = await getAllActions(school);
       const alertsList = [];
+      const emailDomain = SCHOOL_EMAIL_DOMAINS[school];
+      
+      // Filtrer par école d'abord
+      const filteredActions = allActions.filter(action => 
+        action.email && action.email.toLowerCase().includes(emailDomain)
+      );
       
       // Détecter les anomalies
-      allActions.forEach((action, index) => {
-        // Email invalide
-        if (action.email && !action.email.includes('@eugeniaschool.com')) {
+      filteredActions.forEach((action, index) => {
+        // Email invalide (ne devrait pas arriver après filtrage, mais on vérifie)
+        if (action.email && !action.email.toLowerCase().includes(emailDomain)) {
           alertsList.push({
             id: `alert-email-${index}`,
             type: 'warning',
             icon: '📧',
             title: 'Email invalide',
-            message: `${action.email} n'est pas un email @eugeniaschool.com`,
+            message: `${action.email} n'est pas un email ${emailDomain}`,
             actionId: action.id,
             severity: 'medium'
           });
@@ -131,7 +156,7 @@ export default function AdminDashboard() {
       
       // Détecter les doublons potentiels
       const actionsByEmailAndType = {};
-      allActions.forEach(action => {
+      filteredActions.forEach(action => {
         const key = `${action.email}-${action.type}`;
         if (!actionsByEmailAndType[key]) {
           actionsByEmailAndType[key] = [];
@@ -189,10 +214,10 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          Dashboard Admin
+          Dashboard Admin - {SCHOOL_NAMES[school]}
         </h2>
         <p className="text-gray-600">
-          Vue d'ensemble du système de gamification
+          Vue d'ensemble du système de gamification pour {SCHOOL_NAMES[school]}
         </p>
       </div>
 

@@ -1,0 +1,49 @@
+{
+  "name": "Campus Platform - Gamification Campus",
+  "short_name": "Campus Platform",
+  "description": "Plateforme de gamification pour les écoles. Motivez vos étudiants avec des points, des classements et des récompenses.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#671324",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity", "social"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Classement",
+      "short_name": "Classement",
+      "description": "Voir le classement",
+      "url": "/eugenia-school/leaderboard",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Soumettre",
+      "short_name": "Soumettre",
+      "description": "Soumettre une action",
+      "url": "/eugenia-school/submit",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    }
+  ]
+}
+
+
+
+
+
+
+

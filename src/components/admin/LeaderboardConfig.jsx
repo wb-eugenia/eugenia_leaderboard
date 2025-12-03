@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getLeaderboard, updateLeaderboardUser, deleteLeaderboardUser, bulkImportStudents } from '../../services/googleSheets';
 import BulkImportStudents from './BulkImportStudents';
+import { SCHOOL_EMAIL_DOMAINS } from '../../constants/routes';
 
-export default function LeaderboardConfig() {
+export default function LeaderboardConfig({ school = 'eugenia' }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -11,12 +12,17 @@ export default function LeaderboardConfig() {
 
   useEffect(() => {
     loadLeaderboard();
-  }, []);
+  }, [school]);
 
   const loadLeaderboard = async () => {
     try {
-      const data = await getLeaderboard();
-      setLeaderboard(data);
+      const emailDomain = SCHOOL_EMAIL_DOMAINS[school];
+      const data = await getLeaderboard(school);
+      // Filtrer par école
+      const filteredData = data.filter(user => 
+        user.email && user.email.toLowerCase().includes(emailDomain)
+      );
+      setLeaderboard(filteredData);
     } catch (error) {
       console.error('Error loading leaderboard:', error);
     } finally {
