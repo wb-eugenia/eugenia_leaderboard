@@ -32,7 +32,6 @@ export const ROUTES = {
   // Student routes (will be prefixed with school path)
   STUDENT_LOGIN: '/login',
   STUDENT_HOME: '',
-  STUDENT_PORTFOLIO: '/portfolio',
   STUDENT_AMBASSADEURS: '/ambassadeurs',
   STUDENT_ASSOCIATIONS: '/associations',
   STUDENT_ASSOCIATIONS_AGENDA: '/associations/agenda',

@@ -14,7 +14,6 @@ export const STORAGE_KEYS = {
   ADMIN_AUTH: 'admin_authenticated',
   ADMIN_SCHOOL: 'admin_school',
   CONFIG: 'eugeniaConfig',
-  PORTFOLIO: (email) => `portfolio_${email}`,
   ASSOCIATIONS: (email) => `associations_${email}`
 };
 

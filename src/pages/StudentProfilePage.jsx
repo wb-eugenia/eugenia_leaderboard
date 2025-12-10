@@ -6,71 +6,15 @@ import PageLayout from '../components/shared/PageLayout';
 export default function StudentProfilePage({ school = 'eugenia' }) {
   const { student, logout, updateStudent } = useStudentAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('portfolio');
-  const [portfolio, setPortfolio] = useState({
-    title: '',
-    description: '',
-    github: '',
-    website: '',
-    technologies: [],
-    projects: []
-  });
   const [associations, setAssociations] = useState([]);
-  const [newTech, setNewTech] = useState('');
-  const [newProject, setNewProject] = useState({ title: '', description: '', link: '' });
 
   useEffect(() => {
-    // Charger le portfolio depuis localStorage ou API
-    const savedPortfolio = localStorage.getItem(`portfolio_${student.email}`);
-    if (savedPortfolio) {
-      setPortfolio(JSON.parse(savedPortfolio));
-    }
-
     // Charger les associations
     const savedAssociations = localStorage.getItem(`associations_${student.email}`);
     if (savedAssociations) {
       setAssociations(JSON.parse(savedAssociations));
     }
   }, [student]);
-
-  const handlePortfolioSave = () => {
-    localStorage.setItem(`portfolio_${student.email}`, JSON.stringify(portfolio));
-    alert('Portfolio sauvegardé !');
-  };
-
-  const handleAddTech = () => {
-    if (newTech.trim()) {
-      setPortfolio({
-        ...portfolio,
-        technologies: [...portfolio.technologies, newTech.trim()]
-      });
-      setNewTech('');
-    }
-  };
-
-  const handleRemoveTech = (index) => {
-    setPortfolio({
-      ...portfolio,
-      technologies: portfolio.technologies.filter((_, i) => i !== index)
-    });
-  };
-
-  const handleAddProject = () => {
-    if (newProject.title.trim()) {
-      setPortfolio({
-        ...portfolio,
-        projects: [...portfolio.projects, { ...newProject }]
-      });
-      setNewProject({ title: '', description: '', link: '' });
-    }
-  };
-
-  const handleRemoveProject = (index) => {
-    setPortfolio({
-      ...portfolio,
-      projects: portfolio.projects.filter((_, i) => i !== index)
-    });
-  };
 
   const handleJoinAssociation = (assoId) => {
     if (!associations.find(a => a.id === assoId)) {
@@ -110,7 +54,7 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
               👤 Mon Profil
             </h1>
             <p className="text-xl md:text-2xl opacity-90">
-              Gérez votre profil et votre portfolio
+              Gérez votre profil
             </p>
           </div>
         </section>
@@ -169,183 +113,14 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Associations Section */}
           <div className="bg-white rounded-2xl shadow-lg p-6 lg:p-8 mb-8">
-            <div className="flex gap-4 border-b mb-6">
-              <button
-                onClick={() => setActiveTab('portfolio')}
-                className={`px-6 py-3 font-semibold transition-colors ${
-                  activeTab === 'portfolio'
-                    ? 'border-b-2 border-eugenia-burgundy text-eugenia-burgundy'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                📁 Portfolio
-              </button>
-              <button
-                onClick={() => setActiveTab('associations')}
-                className={`px-6 py-3 font-semibold transition-colors ${
-                  activeTab === 'associations'
-                    ? 'border-b-2 border-eugenia-burgundy text-eugenia-burgundy'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                🎪 Associations
-              </button>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">🎪 Associations</h2>
             </div>
 
-            {/* Tab Content: Portfolio */}
-            {activeTab === 'portfolio' && (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Titre du portfolio
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={portfolio.title}
-                    onChange={(e) => setPortfolio({ ...portfolio, title: e.target.value })}
-                    placeholder="Ex: Portfolio de Développement Web"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    className="form-control"
-                    rows="4"
-                    value={portfolio.description}
-                    onChange={(e) => setPortfolio({ ...portfolio, description: e.target.value })}
-                    placeholder="Décrivez vos compétences et votre parcours..."
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      GitHub
-                    </label>
-                    <input
-                      type="url"
-                      className="form-control"
-                      value={portfolio.github}
-                      onChange={(e) => setPortfolio({ ...portfolio, github: e.target.value })}
-                      placeholder="https://github.com/username"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-700 font-semibold mb-2">
-                      Site Web
-                    </label>
-                    <input
-                      type="url"
-                      className="form-control"
-                      value={portfolio.website}
-                      onChange={(e) => setPortfolio({ ...portfolio, website: e.target.value })}
-                      placeholder="https://monsite.com"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Technologies
-                  </label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      type="text"
-                      className="form-control flex-1"
-                      value={newTech}
-                      onChange={(e) => setNewTech(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddTech()}
-                      placeholder="Ajouter une technologie (ex: React, Node.js)"
-                    />
-                    <button onClick={handleAddTech} className="btn btn-primary">
-                      ➕
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {portfolio.technologies.map((tech, i) => (
-                      <span
-                        key={i}
-                        className="bg-eugenia-burgundy/10 text-eugenia-burgundy px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2"
-                      >
-                        {tech}
-                        <button
-                          onClick={() => handleRemoveTech(i)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          ✕
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-2">
-                    Projets
-                  </label>
-                  <div className="space-y-4 mb-4">
-                    {portfolio.projects.map((project, i) => (
-                      <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-bold text-gray-900">{project.title}</h4>
-                          <button
-                            onClick={() => handleRemoveProject(i)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <p className="text-gray-600 text-sm mb-2">{project.description}</p>
-                        {project.link && (
-                          <a href={project.link} target="_blank" rel="noopener noreferrer" className="text-eugenia-burgundy text-sm">
-                            🔗 Voir le projet
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newProject.title}
-                      onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
-                      placeholder="Titre du projet"
-                    />
-                    <textarea
-                      className="form-control"
-                      rows="2"
-                      value={newProject.description}
-                      onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                      placeholder="Description"
-                    />
-                    <input
-                      type="url"
-                      className="form-control"
-                      value={newProject.link}
-                      onChange={(e) => setNewProject({ ...newProject, link: e.target.value })}
-                      placeholder="Lien (optionnel)"
-                    />
-                    <button onClick={handleAddProject} className="btn btn-primary w-full">
-                      ➕ Ajouter le projet
-                    </button>
-                  </div>
-                </div>
-
-                <button onClick={handlePortfolioSave} className="btn btn-primary w-full text-lg py-4">
-                  💾 Sauvegarder le portfolio
-                </button>
-              </div>
-            )}
-
-            {/* Tab Content: Associations */}
-            {activeTab === 'associations' && (
+            {/* Associations Content */}
+            <div className="space-y-6">
               <div className="space-y-6">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">
                   Mes associations
@@ -407,8 +182,7 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
                       ))}
                   </div>
                 </div>
-              </div>
-            )}
+            </div>
           </div>
         </div>
         </div>

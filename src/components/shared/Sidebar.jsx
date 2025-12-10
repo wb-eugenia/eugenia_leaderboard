@@ -45,11 +45,6 @@ export default function Sidebar({ school = 'eugenia', isOpen, onClose }) {
       icon: '🏠'
     },
     {
-      path: `${schoolPath}/portfolio`,
-      label: '📁 Portfolio',
-      icon: '📁'
-    },
-    {
       path: `${schoolPath}/ambassadeurs`,
       label: '🌟 Ambassadeurs',
       icon: '🌟'

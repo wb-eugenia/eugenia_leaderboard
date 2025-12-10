@@ -20,10 +20,7 @@ export default function AlbertSchoolPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/albert-school/portfolio" className="btn btn-primary text-lg py-4 px-8" style={{ backgroundColor: '#60A5FA' }}>
-              📁 Découvrir les portfolios
-            </Link>
-            <Link to="/albert-school/ambassadeurs" className="btn btn-secondary text-lg py-4 px-8">
+            <Link to="/albert-school/ambassadeurs" className="btn btn-primary text-lg py-4 px-8" style={{ backgroundColor: '#60A5FA' }}>
               🌟 Rejoindre les ambassadeurs
             </Link>
             <Link to="/albert-school/associations" className="btn btn-secondary text-lg py-4 px-8">
@@ -33,69 +30,7 @@ export default function AlbertSchoolPage() {
         </div>
       </section>
 
-      {/* Section 1: Portfolio d'École */}
-      <section id="portfolio" className="py-16 px-4 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Contenu texte */}
-            <div>
-              <div className="inline-block bg-blue-100 text-[#1E40AF] px-4 py-2 rounded-full text-sm font-semibold mb-4">
-                📁 Portfolios du Mois
-              </div>
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                Exposez vos projets, montrez vos compétences
-              </h2>
-              
-              <div className="space-y-4 mb-6">
-                <p className="text-gray-600 text-lg">
-                  <strong className="text-[#1E40AF]">Problème :</strong> Les projets étudiants restent peu visibles, les talents ne sont pas valorisés.
-                </p>
-                <p className="text-gray-600 text-lg">
-                  <strong className="text-[#3B82F6]">Solution :</strong> Découvrez les portfolios des étudiants, leurs réalisations techniques, design et innovation.
-                </p>
-                <p className="text-gray-600 text-lg">
-                  <strong className="text-[#60A5FA]">Valeur :</strong> Valorisation des talents, image innovante de l'école, communauté active et inspirante.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/albert-school/portfolio" className="btn btn-primary" style={{ backgroundColor: '#60A5FA' }}>
-                  Découvrir les portfolios
-                </Link>
-                <a href="#" className="btn btn-outline" style={{ borderColor: '#1E40AF', color: '#1E40AF' }}>
-                  Voir sur GitHub
-                </a>
-              </div>
-            </div>
-
-            {/* Visuels */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="card text-center">
-                <div className="text-5xl mb-2">🎨</div>
-                <h3 className="font-bold text-lg mb-2">Design</h3>
-                <p className="text-gray-600 text-sm">Projets UI/UX</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-5xl mb-2">💻</div>
-                <h3 className="font-bold text-lg mb-2">Développement</h3>
-                <p className="text-gray-600 text-sm">Apps & Web</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-5xl mb-2">📱</div>
-                <h3 className="font-bold text-lg mb-2">Applications</h3>
-                <p className="text-gray-600 text-sm">Mobile & Desktop</p>
-              </div>
-              <div className="card text-center">
-                <div className="text-5xl mb-2">🚀</div>
-                <h3 className="font-bold text-lg mb-2">Innovation</h3>
-                <p className="text-gray-600 text-sm">Projets disruptifs</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Section 2: Programme Ambassadeur */}
+      {/* Section 1: Programme Ambassadeur */}
       <section id="ambassadeurs" className="py-16 px-4 bg-gradient-to-br from-blue-50 to-blue-100">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -252,10 +187,7 @@ export default function AlbertSchoolPage() {
           </div>
 
           <div className="text-center mt-12">
-            <Link to="/albert-school/portfolio" className="btn btn-primary text-lg px-8 py-4 mr-4" style={{ backgroundColor: '#60A5FA' }}>
-              Découvrir les portfolios
-            </Link>
-            <Link to="/albert-school/ambassadeurs" className="btn btn-secondary text-lg px-8 py-4">
+            <Link to="/albert-school/ambassadeurs" className="btn btn-primary text-lg px-8 py-4" style={{ backgroundColor: '#60A5FA' }}>
               Rejoindre les ambassadeurs
             </Link>
           </div>
@@ -270,13 +202,10 @@ export default function AlbertSchoolPage() {
               Prêt à rejoindre la communauté ?
             </h2>
             <p className="text-white/90 text-xl mb-8">
-              Explorez les portfolios, participez aux programmes ou découvrez les associations
+              Participez aux programmes ou découvrez les associations
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/albert-school/portfolio" className="btn btn-primary text-lg px-8 py-4" style={{ backgroundColor: '#60A5FA' }}>
-                📁 Portfolio
-              </Link>
-              <Link to="/albert-school/ambassadeurs" className="btn btn-secondary text-lg px-8 py-4">
+              <Link to="/albert-school/ambassadeurs" className="btn btn-primary text-lg px-8 py-4" style={{ backgroundColor: '#60A5FA' }}>
                 🌟 Ambassadeur
               </Link>
               <Link to="/albert-school/associations" className="btn btn-secondary text-lg px-8 py-4">

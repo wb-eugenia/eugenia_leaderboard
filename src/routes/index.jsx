@@ -16,7 +16,6 @@ const EugeniaLoginPage = lazy(() => import('../pages/EugeniaLoginPage'));
 const AlbertLoginPage = lazy(() => import('../pages/AlbertLoginPage'));
 const LeaderboardPage = lazy(() => import('../pages/LeaderboardPage'));
 const SubmitActionPage = lazy(() => import('../pages/SubmitActionPage'));
-const PortfolioPage = lazy(() => import('../pages/PortfolioPage'));
 const AmbassadeursPage = lazy(() => import('../pages/AmbassadeursPage'));
 const AssociationsPage = lazy(() => import('../pages/AssociationsPage'));
 const StudentProfilePage = lazy(() => import('../pages/StudentProfilePage'));
@@ -56,14 +55,6 @@ export function createStudentRoutes(school) {
       element: (
         <SchoolAuth school={school}>
           <SchoolPage />
-        </SchoolAuth>
-      )
-    },
-    {
-      path: `${schoolPath}/portfolio`,
-      element: (
-        <SchoolAuth school={school}>
-          <PortfolioPage school={school} />
         </SchoolAuth>
       )
     },

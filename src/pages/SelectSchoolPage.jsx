@@ -11,7 +11,7 @@ export default function SelectSchoolPage() {
     {
       id: 'eugenia',
       name: 'Eugenia School',
-      description: 'Rejoignez la communauté Eugenia et découvrez les talents, portfolios et initiatives de vos camarades.',
+      description: 'Rejoignez la communauté Eugenia et découvrez les talents et initiatives de vos camarades.',
       logo: <EugeniaLogo />,
       colors: 'from-[#671324] via-[#E33054] to-[#671324]',
       loginPath: '/eugenia-school/login'

@@ -119,12 +119,13 @@ export default function SocialLinksIntegration({
       {/* Aide */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
         <p className="text-sm text-blue-800 dark:text-blue-200">
-          💡 <strong>Astuce:</strong> Ajoutez vos profils LinkedIn et GitHub pour enrichir votre portfolio et permettre aux recruteurs de vous découvrir facilement.
+          💡 <strong>Astuce:</strong> Ajoutez vos profils LinkedIn et GitHub pour permettre aux recruteurs de vous découvrir facilement.
         </p>
       </div>
     </div>
   );
 }
+
 
 
 

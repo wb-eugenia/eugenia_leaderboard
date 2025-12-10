@@ -7,7 +7,6 @@ import { getLeaderboard } from '../services/googleSheets';
 export default function StudentPublicProfilePage() {
   const { slug } = useParams();
   const [student, setStudent] = useState(null);
-  const [portfolio, setPortfolio] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,12 +27,6 @@ export default function StudentPublicProfilePage() {
 
       if (foundStudent) {
         setStudent(foundStudent);
-        
-        // Charger le portfolio depuis localStorage
-        const savedPortfolio = localStorage.getItem(`portfolio_${foundStudent.email}`);
-        if (savedPortfolio) {
-          setPortfolio(JSON.parse(savedPortfolio));
-        }
       }
     } catch (error) {
       console.error('Error loading student data:', error);
@@ -112,113 +105,6 @@ export default function StudentPublicProfilePage() {
                 </div>
              </div>
           </div>
-
-          {/* Portfolio */}
-          {portfolio && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8 mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                <span className="text-eugenia-yellow">📁</span> Portfolio
-              </h2>
-              
-              {portfolio.title && (
-                <h3 className="text-xl font-bold text-eugenia-burgundy mb-4">
-                  {portfolio.title}
-                </h3>
-              )}
-              
-              {portfolio.description && (
-                <p className="text-gray-700 mb-8 leading-relaxed text-lg">
-                  {portfolio.description}
-                </p>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                {portfolio.github && (
-                  <a
-                    href={portfolio.github}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group bg-gray-50 hover:bg-gray-900 hover:text-white border border-gray-200 p-5 rounded-xl flex items-center gap-4 transition-all"
-                  >
-                    <span className="text-3xl">💻</span>
-                    <div>
-                      <div className="font-bold">GitHub</div>
-                      <div className="text-sm text-gray-500 group-hover:text-gray-300">Voir les projets</div>
-                    </div>
-                  </a>
-                )}
-                {portfolio.website && (
-                  <a
-                    href={portfolio.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="group bg-gray-50 hover:bg-eugenia-burgundy hover:text-white border border-gray-200 p-5 rounded-xl flex items-center gap-4 transition-all"
-                  >
-                    <span className="text-3xl">🌐</span>
-                    <div>
-                      <div className="font-bold">Site Web</div>
-                      <div className="text-sm text-gray-500 group-hover:text-gray-200">Visiter le site</div>
-                    </div>
-                  </a>
-                )}
-              </div>
-
-              {portfolio.technologies && portfolio.technologies.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide text-sm text-gray-500">Compétences Techniques</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {portfolio.technologies.map((tech, i) => (
-                      <span
-                        key={i}
-                        className="bg-gray-100 text-gray-800 border border-gray-200 px-4 py-2 rounded-full text-sm font-semibold"
-                      >
-                        {tech}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {portfolio.projects && portfolio.projects.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 uppercase tracking-wide text-sm text-gray-500">Projets Réalisés</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    {portfolio.projects.map((project, i) => (
-                      <div key={i} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h4 className="font-bold text-gray-900 text-lg mb-2">{project.title}</h4>
-                                {project.description && (
-                                <p className="text-gray-600 mb-3">{project.description}</p>
-                                )}
-                            </div>
-                            {project.link && (
-                                <a
-                                    href={project.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn btn-outline btn-sm whitespace-nowrap"
-                                >
-                                    Voir 🔗
-                                </a>
-                            )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!portfolio && (
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center mb-8">
-              <div className="text-6xl mb-4">📁</div>
-              <p className="text-gray-500 text-lg">
-                Cet étudiant n'a pas encore créé son portfolio.
-              </p>
-            </div>
-          )}
 
           {/* Lien vers le classement */}
           <div className="text-center">
