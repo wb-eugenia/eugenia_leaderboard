@@ -121,10 +121,9 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
 
             {/* Associations Content */}
             <div className="space-y-6">
-              <div className="space-y-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                  Mes associations
-                </h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                Mes associations
+              </h3>
                 {associations.length === 0 ? (
                   <p className="text-gray-600 text-center py-8">
                     Vous n'avez pas encore rejoint d'association
@@ -184,7 +183,7 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
                 </div>
             </div>
           </div>
-        </div>
+          </div>
         </div>
       </div>
     </PageLayout>
