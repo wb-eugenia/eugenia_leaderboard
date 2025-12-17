@@ -5,7 +5,7 @@ import { useSchoolTheme } from '../../hooks/useSchoolTheme';
 
 export default function Sidebar({ school = 'eugenia', isOpen, onClose }) {
   const location = useLocation();
-  const { student } = useStudentAuth();
+  const { student, logout } = useStudentAuth();
   const theme = useSchoolTheme(school);
   const schoolPath = school === 'eugenia' ? '/eugenia-school' : '/albert-school';
   const [unreadCount, setUnreadCount] = useState(0);
@@ -176,22 +176,34 @@ export default function Sidebar({ school = 'eugenia', isOpen, onClose }) {
 
             {/* Profil utilisateur */}
             {student ? (
-              <Link
-                to={`${schoolPath}/student/profile`}
-                onClick={onClose}
-                className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg
-                  transition-all duration-200
-                  ${
-                    location.pathname.includes('/student/profile')
-                      ? 'bg-white/20 text-white shadow-lg'
-                      : 'text-white/80 hover:bg-white/10 hover:text-white'
-                  }
-                `}
-              >
-                <span className="text-xl">👤</span>
-                <span className="font-semibold">Mon profil</span>
-              </Link>
+              <>
+                <Link
+                  to={`${schoolPath}/student/profile`}
+                  onClick={onClose}
+                  className={`
+                    flex items-center gap-3 px-4 py-3 rounded-lg
+                    transition-all duration-200
+                    ${
+                      location.pathname.includes('/student/profile')
+                        ? 'bg-white/20 text-white shadow-lg'
+                        : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    }
+                  `}
+                >
+                  <span className="text-xl">👤</span>
+                  <span className="font-semibold">Mon profil</span>
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    onClose();
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-white/80 hover:bg-red-500/20 hover:text-white transition-all duration-200 w-full"
+                >
+                  <span className="text-xl">🚪</span>
+                  <span className="font-semibold">Déconnexion</span>
+                </button>
+              </>
             ) : (
               <Link
                 to={`${schoolPath}/login`}

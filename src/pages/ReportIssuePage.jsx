@@ -97,6 +97,10 @@ export default function ReportIssuePage({ school = 'eugenia' }) {
 
       const API_URL = import.meta.env.VITE_API_URL;
       
+      if (!API_URL) {
+        console.warn('VITE_API_URL n\'est pas définie, utilisation du fallback localStorage');
+      }
+      
       if (API_URL) {
         const response = await fetch(`${API_URL}/reports`, {
           method: 'POST',
@@ -114,11 +118,20 @@ export default function ReportIssuePage({ school = 'eugenia' }) {
           })
         });
 
-        if (!response.ok) {
-          throw new Error('Erreur lors de l\'envoi du signalement');
+        // Lire la réponse même en cas d'erreur
+        let result;
+        try {
+          result = await response.json();
+        } catch (e) {
+          // Si la réponse n'est pas du JSON, lire le texte
+          const text = await response.text();
+          throw new Error(`Erreur serveur (${response.status}): ${text || response.statusText}`);
         }
 
-        const result = await response.json();
+        if (!response.ok) {
+          const errorMessage = result?.error || result?.message || `Erreur ${response.status}: ${response.statusText}`;
+          throw new Error(errorMessage);
+        }
         
         if (result.success) {
           setMessage({ 
@@ -137,11 +150,12 @@ export default function ReportIssuePage({ school = 'eugenia' }) {
           });
           
           // Rediriger après 2 secondes
+          const basePath = school === 'albert' ? '/albert-school' : '/eugenia-school';
           setTimeout(() => {
-            navigate('/');
+            navigate(basePath);
           }, 2000);
         } else {
-          throw new Error(result.error || 'Erreur lors de l\'envoi');
+          throw new Error(result.error || result.message || 'Erreur lors de l\'envoi');
         }
       } else {
         // Fallback: sauvegarder dans localStorage
@@ -169,9 +183,19 @@ export default function ReportIssuePage({ school = 'eugenia' }) {
       }
     } catch (error) {
       console.error('Error submitting report:', error);
+      let errorMessage = 'Une erreur est survenue lors de l\'envoi du signalement';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = 'Erreur de connexion. Vérifiez votre connexion internet et réessayez.';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       setMessage({ 
         type: 'error', 
-        text: `Erreur: ${error.message || 'Une erreur est survenue'}` 
+        text: `Erreur: ${errorMessage}` 
       });
     } finally {
       setSubmitting(false);

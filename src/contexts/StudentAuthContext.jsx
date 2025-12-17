@@ -52,15 +52,10 @@ export function StudentAuthProvider({ children }) {
             redirectPath: `/${school}-school/admin`
           };
         } else {
-          // Pour les autres emails, créer un profil étudiant par défaut
-          // On ne vérifie plus si l'email existe dans la base de données
-          const emailParts = emailLower.split('@')[0].split('.');
-          const firstName = emailParts[0] || 'etudiant';
-          const lastName = emailParts[1] || (school === 'eugenia' ? 'eugenia' : 'albert');
-          
+          // Récupérer les données depuis le leaderboard/API
           studentData = {
-            firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
-            lastName: lastName.charAt(0).toUpperCase() + lastName.slice(1),
+            firstName: 'Étudiant',
+            lastName: school === 'eugenia' ? 'Eugenia' : 'Albert',
             email: emailLower,
             classe: 'B1',
             totalPoints: 0,
@@ -68,7 +63,7 @@ export function StudentAuthProvider({ children }) {
             lastUpdate: new Date().toISOString()
           };
           
-          // Optionnel : essayer de récupérer les données depuis le leaderboard si disponible
+          // Essayer de récupérer les données depuis le leaderboard si disponible
           if (API_URL) {
             try {
               const response = await fetch(`${API_URL}/leaderboard`);
@@ -86,10 +81,34 @@ export function StudentAuthProvider({ children }) {
                   actionsCount: existingStudent.actionsCount || existingStudent.actions_count || 0,
                   lastUpdate: existingStudent.lastUpdate || existingStudent.last_update || studentData.lastUpdate
                 };
+              } else {
+                // Si l'étudiant n'existe pas dans le leaderboard, essayer de l'extraire de l'email
+                const emailPrefix = emailLower.split('@')[0];
+                const emailParts = emailPrefix.split('.');
+                
+                if (emailParts.length >= 2) {
+                  // Format prenom.nom
+                  studentData.firstName = emailParts[0].charAt(0).toUpperCase() + emailParts[0].slice(1);
+                  studentData.lastName = emailParts.slice(1).join(' ').charAt(0).toUpperCase() + emailParts.slice(1).join(' ').slice(1);
+                } else {
+                  // Format sans point, utiliser le préfixe comme prénom
+                  studentData.firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+                  studentData.lastName = school === 'eugenia' ? 'Eugenia' : 'Albert';
+                }
               }
             } catch (error) {
-              // Si l'API échoue, on continue avec les données par défaut
-              console.log('Could not fetch leaderboard, using default student data');
+              // Si l'API échoue, essayer d'extraire depuis l'email
+              console.log('Could not fetch leaderboard, extracting from email');
+              const emailPrefix = emailLower.split('@')[0];
+              const emailParts = emailPrefix.split('.');
+              
+              if (emailParts.length >= 2) {
+                studentData.firstName = emailParts[0].charAt(0).toUpperCase() + emailParts[0].slice(1);
+                studentData.lastName = emailParts.slice(1).join(' ').charAt(0).toUpperCase() + emailParts.slice(1).join(' ').slice(1);
+              } else {
+                studentData.firstName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+                studentData.lastName = school === 'eugenia' ? 'Eugenia' : 'Albert';
+              }
             }
           }
         }

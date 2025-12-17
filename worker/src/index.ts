@@ -3032,6 +3032,35 @@ async function createReport(env: Env, request: Request): Promise<Response> {
       return jsonResponse({ success: false, error: 'Champs manquants' }, 400);
     }
 
+    // Créer la table si elle n'existe pas (auto-migration)
+    try {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS reports (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          location TEXT NOT NULL,
+          category TEXT NOT NULL,
+          photo TEXT,
+          student_email TEXT NOT NULL,
+          student_name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      // Créer les index si nécessaire
+      await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)`).run();
+      await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at)`).run();
+      await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_reports_student_email ON reports(student_email)`).run();
+    } catch (migrationError: any) {
+      // Ignorer les erreurs si la table existe déjà
+      if (!migrationError.message?.includes('already exists')) {
+        console.warn('Migration warning (non-blocking):', migrationError.message);
+      }
+    }
+
     const reportId = `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
@@ -3063,6 +3092,30 @@ async function createReport(env: Env, request: Request): Promise<Response> {
  */
 async function getReports(env: Env): Promise<Response> {
   try {
+    // Créer la table si elle n'existe pas (auto-migration)
+    try {
+      await env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS reports (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          location TEXT NOT NULL,
+          category TEXT NOT NULL,
+          photo TEXT,
+          student_email TEXT NOT NULL,
+          student_name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+    } catch (migrationError: any) {
+      // Ignorer les erreurs si la table existe déjà
+      if (!migrationError.message?.includes('already exists')) {
+        console.warn('Migration warning (non-blocking):', migrationError.message);
+      }
+    }
+
     const { results } = await env.DB.prepare(
       'SELECT * FROM reports ORDER BY created_at DESC'
     ).all();
@@ -3126,10 +3179,90 @@ async function deleteReport(env: Env, reportId: string): Promise<Response> {
 }
 
 /**
+ * Helper: Créer les tables d'associations si elles n'existent pas (auto-migration)
+ */
+async function ensureAssociationTables(env: Env): Promise<void> {
+  try {
+    // Créer la table associations
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS associations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        emoji TEXT NOT NULL DEFAULT '🤝',
+        description TEXT,
+        category TEXT NOT NULL DEFAULT 'Autre',
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `).run();
+
+    // Créer la table association_members
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS association_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        association_id INTEGER NOT NULL,
+        student_email TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member', 'admin')),
+        joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
+        FOREIGN KEY (association_id) REFERENCES associations(id) ON DELETE CASCADE,
+        UNIQUE(association_id, student_email)
+      )
+    `).run();
+
+    // Créer la table association_applications
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS association_applications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        association_id INTEGER NOT NULL,
+        student_email TEXT NOT NULL,
+        message TEXT,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'accepted', 'rejected')),
+        applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+        reviewed_at TEXT,
+        reviewed_by TEXT,
+        FOREIGN KEY (association_id) REFERENCES associations(id) ON DELETE CASCADE
+      )
+    `).run();
+
+    // Créer la table association_events
+    await env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS association_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        association_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT,
+        date TEXT NOT NULL,
+        time TEXT,
+        location TEXT,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (association_id) REFERENCES associations(id) ON DELETE CASCADE
+      )
+    `).run();
+
+    // Créer les index
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_association_members_association ON association_members(association_id)`).run();
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_association_members_email ON association_members(student_email)`).run();
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_association_applications_association ON association_applications(association_id)`).run();
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_association_applications_status ON association_applications(status)`).run();
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_association_events_association ON association_events(association_id)`).run();
+    await env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_association_events_date ON association_events(date)`).run();
+  } catch (migrationError: any) {
+    // Ignorer les erreurs si les tables existent déjà
+    if (!migrationError.message?.includes('already exists')) {
+      console.warn('Association tables migration warning (non-blocking):', migrationError.message);
+    }
+  }
+}
+
+/**
  * Helper: Vérifier si un utilisateur est admin d'une association
  */
 async function isAssociationAdmin(env: Env, associationId: number, email: string): Promise<boolean> {
   try {
+    await ensureAssociationTables(env);
     const member = await env.DB.prepare(
       'SELECT role FROM association_members WHERE association_id = ? AND student_email = ? AND status = "active"'
     ).bind(associationId, email.toLowerCase()).first() as any;
@@ -3145,6 +3278,7 @@ async function isAssociationAdmin(env: Env, associationId: number, email: string
  */
 async function getAllAssociations(env: Env): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const { results } = await env.DB.prepare(
       `SELECT a.*, 
        COUNT(DISTINCT am.id) as members_count
@@ -3177,6 +3311,7 @@ async function getAllAssociations(env: Env): Promise<Response> {
  */
 async function getAssociationById(env: Env, associationId: string): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const association = await env.DB.prepare(
       `SELECT a.*, 
        COUNT(DISTINCT am.id) as members_count
@@ -3211,6 +3346,7 @@ async function getAssociationById(env: Env, associationId: string): Promise<Resp
  */
 async function createAssociation(env: Env, request: Request): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const body = await request.json() as {
       name: string;
       emoji?: string;
@@ -3327,6 +3463,7 @@ async function deleteAssociation(env: Env, associationId: string, email: string)
  */
 async function getAssociationMembers(env: Env, associationId: string): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const { results } = await env.DB.prepare(
       `SELECT am.*, l.first_name, l.last_name
        FROM association_members am
@@ -3355,6 +3492,7 @@ async function getAssociationMembers(env: Env, associationId: string): Promise<R
  */
 async function addAssociationMember(env: Env, associationId: string, request: Request): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const body = await request.json() as {
       email: string;
       role?: string;
@@ -3456,6 +3594,7 @@ async function updateMemberRole(env: Env, associationId: string, email: string, 
  */
 async function applyToAssociation(env: Env, associationId: string, request: Request): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const body = await request.json() as {
       email: string;
       message?: string;
@@ -3505,6 +3644,7 @@ async function applyToAssociation(env: Env, associationId: string, request: Requ
  */
 async function getAssociationApplications(env: Env, associationId: string, email: string): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     // Vérifier les permissions
     const isAdmin = await isAssociationAdmin(env, parseInt(associationId), email);
     if (!isAdmin) {
@@ -3630,6 +3770,7 @@ async function rejectApplication(env: Env, associationId: string, applicationId:
  */
 async function getAssociationEvents(env: Env, associationId: string): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     const { results } = await env.DB.prepare(
       'SELECT * FROM association_events WHERE association_id = ? ORDER BY date ASC, time ASC'
     ).bind(associationId).all();
@@ -3780,6 +3921,7 @@ async function deleteAssociationEvent(env: Env, associationId: string, eventId: 
  */
 async function getAllEvents(env: Env, month?: string, year?: string): Promise<Response> {
   try {
+    await ensureAssociationTables(env);
     let query = `
       SELECT ae.*, a.name as association_name, a.emoji as association_emoji
       FROM association_events ae

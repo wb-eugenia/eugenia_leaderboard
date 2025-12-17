@@ -21,7 +21,25 @@ export default function AssociationsPage({ school = 'eugenia' }) {
         const monthStr = String(selectedMonth + 1).padStart(2, '0');
         const yearStr = String(selectedYear);
         const data = await getAllEvents(monthStr, yearStr);
-        setEvents(data);
+        
+        // Vérifier si c'est une erreur
+        if (data && data.error) {
+          console.error('API error:', data.error);
+          setEvents([]);
+          return;
+        }
+        
+        // S'assurer que data est un tableau
+        if (Array.isArray(data)) {
+          setEvents(data);
+        } else if (data && Array.isArray(data.events)) {
+          setEvents(data.events);
+        } else if (data && Array.isArray(data.data)) {
+          setEvents(data.data);
+        } else {
+          console.warn('getAllEvents returned non-array data:', data);
+          setEvents([]);
+        }
       } catch (error) {
         console.error('Error fetching events:', error);
         setEvents([]);
@@ -60,7 +78,11 @@ export default function AssociationsPage({ school = 'eugenia' }) {
   };
 
   const getEventsForDay = (day) => {
+    if (!Array.isArray(events)) {
+      return [];
+    }
     return events.filter(event => {
+      if (!event || !event.date) return false;
       const eventDate = new Date(event.date);
       return eventDate.getDate() === day && 
              eventDate.getMonth() === selectedMonth && 
@@ -121,7 +143,7 @@ export default function AssociationsPage({ school = 'eugenia' }) {
           </div>
 
           {/* Légende */}
-          {events.length > 0 && (
+          {Array.isArray(events) && events.length > 0 && (
             <div className="mb-6 flex flex-wrap justify-center gap-4">
               <div className="text-sm text-gray-600 font-semibold">Légende :</div>
               {[...new Set(events.map(e => e.associationName))].slice(0, 5).map(assoName => {
@@ -206,7 +228,7 @@ export default function AssociationsPage({ school = 'eugenia' }) {
             </div>
           )}
 
-          {!loading && events.length === 0 && (
+          {!loading && (!Array.isArray(events) || events.length === 0) && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center mt-8">
               <div className="text-6xl mb-4">📅</div>
               <p className="text-xl text-gray-500">
@@ -218,7 +240,7 @@ export default function AssociationsPage({ school = 'eugenia' }) {
       </section>
 
       {/* Liste des événements du mois */}
-      {events.length > 0 && (
+      {Array.isArray(events) && events.length > 0 && (
         <section className="px-4 py-8 bg-gray-50">
           <div className="max-w-7xl mx-auto">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">

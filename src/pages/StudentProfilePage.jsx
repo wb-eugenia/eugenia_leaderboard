@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useStudentAuth } from '../contexts/StudentAuthContext';
-import { useNavigate } from 'react-router-dom';
 import PageLayout from '../components/shared/PageLayout';
 
 export default function StudentProfilePage({ school = 'eugenia' }) {
-  const { student, logout, updateStudent } = useStudentAuth();
-  const navigate = useNavigate();
+  const { student } = useStudentAuth();
   const [associations, setAssociations] = useState([]);
 
   useEffect(() => {
@@ -42,8 +40,6 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
     localStorage.setItem(`associations_${student.email}`, JSON.stringify(updated));
   };
 
-  const profileUrl = `${window.location.origin}/profile/${student.slug || student.email.split('@')[0].replace('.', '-')}`;
-
   return (
     <PageLayout school={school}>
       <div className="min-h-screen bg-gray-50">
@@ -68,7 +64,9 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
               <div className="text-8xl">👤</div>
               <div className="flex-1 text-center md:text-left">
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  {student.firstName} {student.lastName}
+                  {student.firstName && student.lastName 
+                    ? `${student.firstName} ${student.lastName}`
+                    : student.firstName || student.lastName || student.email?.split('@')[0] || 'Étudiant'}
                 </h1>
                 <p className="text-gray-600 mb-4">{student.email}</p>
                 <p className="text-gray-600 mb-4">Classe: {student.classe || 'N/A'}</p>
@@ -80,35 +78,6 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
                     <span className="font-bold text-eugenia-pink">{student.actionsCount || 0} actions</span>
                   </div>
                 </div>
-                <div className="bg-gray-100 p-4 rounded-lg mb-4">
-                  <p className="text-sm text-gray-600 mb-1">Lien de votre profil public :</p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={profileUrl}
-                      className="form-control flex-1 text-sm"
-                    />
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(profileUrl);
-                        alert('Lien copié !');
-                      }}
-                      className="btn btn-outline text-sm"
-                    >
-                      📋 Copier
-                    </button>
-                  </div>
-                </div>
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate('/');
-                  }}
-                  className="btn btn-danger"
-                >
-                  Déconnexion
-                </button>
               </div>
             </div>
           </div>
