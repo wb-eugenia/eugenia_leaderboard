@@ -29,9 +29,12 @@ export function StudentAuthProvider({ children }) {
         throw new Error(`Email doit être ${emailDomain}`);
       }
 
-      // Pour l'instant, vérification simple (mdp par défaut: 1234)
-      // TODO: Remplacer par un appel API réel
-      if (password === '1234') {
+      // Vérifier le mot de passe (par défaut: 1234, ou mot de passe personnalisé stocké)
+      const storedPassword = localStorage.getItem(`password_${emailLower}`);
+      const defaultPassword = '1234';
+      const validPassword = storedPassword || defaultPassword;
+      
+      if (password === validPassword) {
         const API_URL = import.meta.env.VITE_API_URL;
         let studentData = null;
 

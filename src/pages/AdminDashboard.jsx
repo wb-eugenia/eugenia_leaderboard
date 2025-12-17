@@ -283,24 +283,6 @@ export default function AdminDashboard({ school = 'eugenia' }) {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="admin-card">
-        <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--eugenia-burgundy)' }}>
-          Actions rapides
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link to="/admin/validate" className="btn btn-admin-danger w-full">
-            📋 Valider les actions ({stats.pendingActions})
-          </Link>
-          <Link to="/admin/actions" className="btn btn-admin-secondary w-full">
-            ⚙️ Configurer les types
-          </Link>
-          <Link to="/leaderboard" className="btn btn-outline w-full">
-            🏆 Voir le classement
-          </Link>
-        </div>
-      </div>
-
       {/* Alerts */}
       {alerts.length > 0 && (
         <div className="admin-card alert-admin alert-admin-warning">
