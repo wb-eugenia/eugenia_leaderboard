@@ -2860,13 +2860,26 @@ export default {
       }
 
       // Route: GET /leaderboard/student/:email/stats - Stats détaillées d'un étudiant
-      if (url.pathname.match(/^\/leaderboard\/student\/.+\/stats$/) && request.method === 'GET') {
-        const email = decodeURIComponent(url.pathname.split('/')[3]);
-        const response = await getStudentStats(env, email);
-        return new Response(response.body, {
-          ...response,
-          headers: { ...response.headers, ...corsHeaders() },
-        });
+      if (url.pathname.startsWith('/leaderboard/student/') && url.pathname.endsWith('/stats') && request.method === 'GET') {
+        try {
+          const pathParts = url.pathname.split('/');
+          console.log('📊 Stats request:', { pathname: url.pathname, pathParts });
+          // pathParts = ['', 'leaderboard', 'student', 'email@domain.com', 'stats']
+          if (pathParts.length >= 4 && pathParts[pathParts.length - 1] === 'stats') {
+            const email = decodeURIComponent(pathParts[pathParts.length - 2]);
+            console.log('📊 Decoded email:', email);
+            const response = await getStudentStats(env, email);
+            return new Response(response.body, {
+              ...response,
+              headers: { ...response.headers, ...corsHeaders() },
+            });
+          } else {
+            return jsonResponse({ error: 'Invalid URL format' }, 400);
+          }
+        } catch (error: any) {
+          console.error('❌ Error in stats route:', error);
+          return jsonResponse({ error: error.message || 'Internal server error' }, 500);
+        }
       }
 
       // Route: DELETE /actions/:id - DOIT être AVANT les autres routes /actions/*

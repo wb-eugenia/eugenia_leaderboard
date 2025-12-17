@@ -26,7 +26,13 @@ export default function LeaderboardStats({ school = 'eugenia' }) {
         const encodedEmail = encodeURIComponent(student.email);
         const endpoint = `/leaderboard/student/${encodedEmail}/stats`;
         
-        console.log('Fetching stats from:', endpoint);
+        console.log('Fetching stats:', {
+          email: student.email,
+          encodedEmail,
+          endpoint,
+          baseURL: import.meta.env.VITE_API_URL
+        });
+        
         const data = await api.get(endpoint);
         
         // Vérifier si la réponse contient une erreur
@@ -76,8 +82,14 @@ export default function LeaderboardStats({ school = 'eugenia' }) {
           errorMessage = err.message;
         } else if (err.status === 404) {
           errorMessage = 'Statistiques non disponibles. Soumettez une action pour commencer !';
-        } else if (err.status === 0 || err.message?.includes('Failed to fetch')) {
-          errorMessage = 'Impossible de se connecter au serveur. Vérifiez votre connexion.';
+        } else if (err.status === 0 || err.message?.includes('Failed to fetch') || err.name === 'TypeError') {
+          // Vérifier si l'URL de base est configurée
+          const baseURL = import.meta.env.VITE_API_URL;
+          if (!baseURL) {
+            errorMessage = 'Configuration API manquante. Vérifiez VITE_API_URL dans .env';
+          } else {
+            errorMessage = `Impossible de se connecter au serveur (${baseURL}). Vérifiez votre connexion.`;
+          }
         }
         
         setError(errorMessage);

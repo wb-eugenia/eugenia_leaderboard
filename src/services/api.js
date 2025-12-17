@@ -132,16 +132,23 @@ class ApiService {
    */
   async get(endpoint, options = {}) {
     const url = this.getUrl(endpoint);
-    const response = await fetchWithRetry(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
-    });
+    console.log('API GET request:', { endpoint, url, baseURL: this.baseURL });
     
-    return parseJSON(response);
+    try {
+      const response = await fetchWithRetry(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+      
+      return parseJSON(response);
+    } catch (error) {
+      console.error('API GET error:', { endpoint, url, error: error.message, error });
+      throw error;
+    }
   }
 
   /**
