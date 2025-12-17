@@ -49,13 +49,6 @@ export default function Footer({ school = 'eugenia' }) {
             <h3 className="text-white font-bold text-lg mb-4">Navigation</h3>
             <nav className="flex flex-col gap-3">
               <Link 
-                to={schoolPath} 
-                className="text-white/80 hover:text-yellow-300 transition-colors text-sm"
-                style={{ '--hover-color': theme.accent }}
-              >
-                🏠 Accueil
-              </Link>
-              <Link 
                 to={`${schoolPath}/leaderboard`} 
                 className="text-white/80 hover:text-yellow-300 transition-colors text-sm"
                 style={{ '--hover-color': theme.accent }}

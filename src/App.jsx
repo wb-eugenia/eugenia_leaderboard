@@ -3,16 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { getAllRoutes } from './routes';
 import ErrorBoundary from './components/ErrorBoundary';
 
-// Loading component pour les routes lazy
+// Loading component pour les routes lazy - Pas d'animation
 function RouteLoadingFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800">
-      <div className="text-center">
-        <div className="text-4xl mb-4 animate-pulse">⏳</div>
-        <div className="text-white">Chargement...</div>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 function App() {

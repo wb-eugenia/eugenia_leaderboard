@@ -40,11 +40,6 @@ export default function Sidebar({ school = 'eugenia', isOpen, onClose }) {
 
   const menuItems = [
     {
-      path: schoolPath,
-      label: '🏠 Accueil',
-      icon: '🏠'
-    },
-    {
       path: `${schoolPath}/ambassadeurs`,
       label: '🌟 Ambassadeurs',
       icon: '🌟'
@@ -106,9 +101,13 @@ export default function Sidebar({ school = 'eugenia', isOpen, onClose }) {
       >
         {/* Header du sidebar */}
         <div className="flex items-center justify-between p-4 border-b border-white/20">
-          <h2 className="text-white font-bold text-lg">
+          <Link
+            to={schoolPath}
+            onClick={onClose}
+            className="text-white font-bold text-lg hover:text-yellow-300 transition-colors"
+          >
             {school === 'eugenia' ? 'Eugenia School' : 'Albert School'}
-          </h2>
+          </Link>
           {/* Bouton fermer - Mobile seulement */}
           <button
             onClick={onClose}

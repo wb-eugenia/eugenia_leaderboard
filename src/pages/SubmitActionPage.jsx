@@ -3,15 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { getActionTypes } from '../services/configService';
 import { submitAction } from '../services/googleSheets';
 import PageLayout from '../components/shared/PageLayout';
+import { useStudentAuth } from '../contexts/StudentAuthContext';
 
 export default function SubmitActionPage({ school = 'eugenia' }) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const { student } = useStudentAuth();
   const [selectedType, setSelectedType] = useState('');
   const [formData, setFormData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [actionTypes, setActionTypes] = useState([]);
+  
+  // Rediriger vers la page de connexion si l'étudiant n'est pas connecté
+  useEffect(() => {
+    if (!student) {
+      const loginPath = school === 'albert' ? '/albert-school/login' : '/eugenia-school/login';
+      navigate(loginPath);
+    }
+  }, [student, navigate, school]);
   
   useEffect(() => {
     loadActionTypes();
@@ -34,42 +43,18 @@ export default function SubmitActionPage({ school = 'eugenia' }) {
     });
   };
 
-  // Validation email selon l'école
-  const isValidSchoolEmail = (email, schoolType) => {
-    if (!email || typeof email !== 'string') return false;
-    const emailLower = email.toLowerCase().trim();
-    
-    // Domaines autorisés par école
-    const domains = {
-      eugenia: ['@eugeniaschool.com'],
-      albert: ['@albertschool.com'],
-      // Fallback: autoriser les deux si école non spécifiée
-      default: ['@eugeniaschool.com', '@albertschool.com']
-    };
-    
-    const allowedDomains = domains[schoolType] || domains.default;
-    return allowedDomains.some(domain => emailLower.endsWith(domain));
-  };
-
-  const getEmailDomainHint = (schoolType) => {
-    const hints = {
-      eugenia: '@eugeniaschool.com',
-      albert: '@albertschool.com',
-      default: '@eugeniaschool.com ou @albertschool.com'
-    };
-    return hints[schoolType] || hints.default;
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
 
-    // Validation email selon l'école
-    if (!isValidSchoolEmail(email, school)) {
+    // Vérifier que l'étudiant est connecté
+    if (!student || !student.email) {
       setMessage({ 
         type: 'error', 
-        text: `Veuillez entrer un email ${getEmailDomainHint(school)} valide` 
+        text: 'Vous devez être connecté pour soumettre une action' 
       });
+      const loginPath = school === 'albert' ? '/albert-school/login' : '/eugenia-school/login';
+      navigate(loginPath);
       return;
     }
 
@@ -82,7 +67,7 @@ export default function SubmitActionPage({ school = 'eugenia' }) {
 
     try {
       const result = await submitAction({
-        email,
+        email: student.email,
         type: selectedType,
         data: formData
       });
@@ -94,7 +79,6 @@ export default function SubmitActionPage({ school = 'eugenia' }) {
         });
         
         // Reset form
-        setEmail('');
         setSelectedType('');
         setFormData({});
         
@@ -151,24 +135,6 @@ export default function SubmitActionPage({ school = 'eugenia' }) {
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
 
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Email */}
-              <div>
-                <label className="block text-gray-700 font-bold mb-3 text-lg">
-                  Email étudiant <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">✉️</span>
-                    <input
-                      type="email"
-                      className="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 focus:border-eugenia-burgundy focus:ring-4 focus:ring-eugenia-burgundy/10 transition-all text-gray-900 bg-gray-50 focus:bg-white"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder={school === 'albert' ? 'prenom.nom@albertschool.com' : 'prenom.nom@eugeniaschool.com'}
-                      required
-                    />
-                </div>
-              </div>
-
               {/* Type d'action */}
               <div>
                 <label className="block text-gray-700 font-bold mb-3 text-lg">
