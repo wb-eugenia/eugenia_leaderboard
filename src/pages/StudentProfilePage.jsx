@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStudentAuth } from '../contexts/StudentAuthContext';
 import PageLayout from '../components/shared/PageLayout';
+import LeaderboardStats from '../components/student/LeaderboardStats';
 
 export default function StudentProfilePage({ school = 'eugenia' }) {
   const { student } = useStudentAuth();
@@ -252,6 +253,11 @@ export default function StudentProfilePage({ school = 'eugenia' }) {
                 </div>
               </form>
             )}
+          </div>
+
+          {/* Statistiques de gamification */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 lg:p-8 mb-8">
+            <LeaderboardStats school={school} />
           </div>
 
           {/* Associations Section */}

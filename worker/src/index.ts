@@ -9,6 +9,7 @@ export interface Env {
   ADMIN_PASSWORD?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  EXTERNAL_API_KEY?: string;
 }
 
 interface LeaderboardUser {
@@ -70,12 +71,216 @@ function corsHeaders(): HeadersInit {
 }
 
 /**
+ * Helper: S'assurer que la table leaderboard a toutes les colonnes nécessaires pour la gamification
+ */
+async function ensureLeaderboardGamificationColumns(env: Env): Promise<void> {
+  try {
+    // Vérifier et ajouter les colonnes si elles n'existent pas
+    const columns = [
+      { name: 'level', type: 'INTEGER DEFAULT 1' },
+      { name: 'level_progress', type: 'REAL DEFAULT 0' },
+      { name: 'current_streak', type: 'INTEGER DEFAULT 0' },
+      { name: 'longest_streak', type: 'INTEGER DEFAULT 0' },
+      { name: 'last_action_date', type: 'TEXT' },
+      { name: 'badges', type: 'TEXT DEFAULT "[]"' }
+    ];
+
+    for (const col of columns) {
+      try {
+        await env.DB.prepare(`ALTER TABLE leaderboard ADD COLUMN ${col.name} ${col.type}`).run();
+      } catch (e: any) {
+        // La colonne existe déjà, ignorer l'erreur
+        if (!e.message?.includes('duplicate column')) {
+          console.warn(`Could not add column ${col.name}:`, e.message);
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error('Error ensuring leaderboard gamification columns:', error);
+  }
+}
+
+/**
+ * Calculer le niveau et la progression basés sur les points
+ */
+function calculateLevel(points: number): { level: number; progress: number; nextLevelPoints: number; levelName: string } {
+  const levelThresholds = [
+    { level: 1, min: 0, max: 50, name: 'Novice' },
+    { level: 2, min: 50, max: 100, name: 'Novice' },
+    { level: 3, min: 100, max: 150, name: 'Apprenti' },
+    { level: 4, min: 150, max: 200, name: 'Apprenti' },
+    { level: 5, min: 200, max: 300, name: 'Expert' },
+    { level: 6, min: 300, max: 400, name: 'Expert' },
+    { level: 7, min: 400, max: 500, name: 'Maître' },
+    { level: 8, min: 500, max: 600, name: 'Maître' },
+    { level: 9, min: 600, max: 750, name: 'Légende' },
+    { level: 10, min: 750, max: 1000, name: 'Légende' },
+  ];
+
+  // Trouver le niveau actuel
+  let currentLevel = 1;
+  let levelName = 'Novice';
+  let nextLevelPoints = 50;
+
+  for (const threshold of levelThresholds) {
+    if (points >= threshold.min && points < threshold.max) {
+      currentLevel = threshold.level;
+      levelName = threshold.name;
+      nextLevelPoints = threshold.max;
+      break;
+    }
+  }
+
+  // Si au-delà du niveau 10
+  if (points >= 1000) {
+    currentLevel = Math.floor((points - 1000) / 250) + 11;
+    levelName = 'Immortel';
+    nextLevelPoints = Math.ceil((currentLevel - 10) * 250) + 1000;
+  }
+
+  // Calculer la progression (0-100)
+  const currentLevelMin = levelThresholds.find(t => t.level === currentLevel)?.min || 0;
+  const currentLevelMax = levelThresholds.find(t => t.level === currentLevel)?.max || nextLevelPoints;
+  const progress = currentLevelMax > currentLevelMin 
+    ? ((points - currentLevelMin) / (currentLevelMax - currentLevelMin)) * 100 
+    : 0;
+
+  return {
+    level: currentLevel,
+    progress: Math.min(100, Math.max(0, progress)),
+    nextLevelPoints,
+    levelName
+  };
+}
+
+/**
+ * Calculer le streak (jours consécutifs avec action validée)
+ */
+async function calculateStreak(env: Env, email: string): Promise<{ current: number; longest: number }> {
+  try {
+    // Récupérer la dernière date d'action et le streak actuel
+    const student = await env.DB.prepare(
+      'SELECT last_action_date, current_streak, longest_streak FROM leaderboard WHERE email = ?'
+    ).bind(email.toLowerCase()).first() as any;
+
+    if (!student) {
+      return { current: 0, longest: 0 };
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const lastActionDate = student.last_action_date ? new Date(student.last_action_date).toISOString().split('T')[0] : null;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+    let currentStreak = student.current_streak || 0;
+    let longestStreak = student.longest_streak || 0;
+
+    // Si dernière action était hier ou aujourd'hui, continuer le streak
+    if (lastActionDate === today) {
+      // Streak déjà mis à jour aujourd'hui
+      currentStreak = currentStreak || 1;
+    } else if (lastActionDate === yesterday) {
+      // Dernière action hier, continuer le streak
+      currentStreak = (currentStreak || 0) + 1;
+    } else if (lastActionDate && lastActionDate < yesterday) {
+      // Streak cassé, réinitialiser
+      currentStreak = 1;
+    } else if (!lastActionDate) {
+      // Première action
+      currentStreak = 1;
+    }
+
+    // Mettre à jour le meilleur streak si nécessaire
+    if (currentStreak > longestStreak) {
+      longestStreak = currentStreak;
+    }
+
+    return { current: currentStreak, longest: longestStreak };
+  } catch (error: any) {
+    console.error('Error calculating streak:', error);
+    return { current: 0, longest: 0 };
+  }
+}
+
+/**
+ * Vérifier et attribuer des badges automatiquement
+ */
+async function checkAndAwardBadges(env: Env, email: string, points: number, actionsCount: number, rank: number, level: number, currentStreak: number): Promise<string[]> {
+  try {
+    // Récupérer les badges existants
+    const student = await env.DB.prepare(
+      'SELECT badges FROM leaderboard WHERE email = ?'
+    ).bind(email.toLowerCase()).first() as any;
+
+    const existingBadges: string[] = student?.badges ? JSON.parse(student.badges) : [];
+    const newBadges: string[] = [];
+
+    // Badges basés sur les actions
+    if (actionsCount >= 1 && !existingBadges.includes('first_action')) {
+      newBadges.push('first_action');
+    }
+
+    // Badges basés sur le rang
+    if (rank === 1 && !existingBadges.includes('champion')) {
+      newBadges.push('champion');
+    }
+    if (rank <= 3 && !existingBadges.includes('top_3')) {
+      newBadges.push('top_3');
+    }
+    if (rank <= 5 && !existingBadges.includes('top_5')) {
+      newBadges.push('top_5');
+    }
+    if (rank <= 10 && !existingBadges.includes('top_10')) {
+      newBadges.push('top_10');
+    }
+    if (rank <= 25 && !existingBadges.includes('top_25')) {
+      newBadges.push('top_25');
+    }
+    if (rank <= 50 && !existingBadges.includes('top_50')) {
+      newBadges.push('top_50');
+    }
+    if (rank <= 100 && !existingBadges.includes('top_100')) {
+      newBadges.push('top_100');
+    }
+
+    // Badges basés sur le niveau
+    if (level >= 5 && !existingBadges.includes('level_5')) {
+      newBadges.push('level_5');
+    }
+    if (level >= 10 && !existingBadges.includes('level_10')) {
+      newBadges.push('level_10');
+    }
+
+    // Badges basés sur le streak
+    if (currentStreak >= 7 && !existingBadges.includes('streak_7')) {
+      newBadges.push('streak_7');
+    }
+    if (currentStreak >= 30 && !existingBadges.includes('streak_30')) {
+      newBadges.push('streak_30');
+    }
+
+    // Mettre à jour les badges si nouveaux
+    if (newBadges.length > 0) {
+      const allBadges = [...existingBadges, ...newBadges];
+      await env.DB.prepare(
+        'UPDATE leaderboard SET badges = ? WHERE email = ?'
+      ).bind(JSON.stringify(allBadges), email.toLowerCase()).run();
+    }
+
+    return [...existingBadges, ...newBadges];
+  } catch (error: any) {
+    console.error('Error checking badges:', error);
+    return [];
+  }
+}
+
+/**
  * GET /leaderboard - Récupère le classement
  */
 async function getLeaderboard(env: Env): Promise<Response> {
   try {
+    await ensureLeaderboardGamificationColumns(env);
     const { results } = await env.DB.prepare(
-      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update FROM leaderboard ORDER BY total_points DESC, last_update DESC'
+      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update, level, level_progress, current_streak, longest_streak, badges FROM leaderboard ORDER BY total_points DESC, last_update DESC'
     ).all();
 
     // Calculer les rangs avec gestion des ex aequo
@@ -89,6 +294,9 @@ async function getLeaderboard(env: Env): Promise<Response> {
         }
       }
 
+      const levelInfo = calculateLevel(user.total_points || 0);
+      const badges = user.badges ? JSON.parse(user.badges) : [];
+
       return {
         rank: currentRank,
         firstName: user.first_name,
@@ -98,6 +306,12 @@ async function getLeaderboard(env: Env): Promise<Response> {
         totalPoints: user.total_points || 0,
         actionsCount: user.actions_count || 0,
         lastUpdate: user.last_update || '',
+        level: user.level || levelInfo.level,
+        levelProgress: user.level_progress !== null ? user.level_progress : levelInfo.progress,
+        levelName: levelInfo.levelName,
+        currentStreak: user.current_streak || 0,
+        longestStreak: user.longest_streak || 0,
+        badges: badges,
       };
     });
 
@@ -108,12 +322,231 @@ async function getLeaderboard(env: Env): Promise<Response> {
 }
 
 /**
+ * GET /leaderboard/class/:classe - Récupère le classement par classe
+ */
+async function getLeaderboardByClass(env: Env, classe: string): Promise<Response> {
+  try {
+    await ensureLeaderboardGamificationColumns(env);
+    const { results } = await env.DB.prepare(
+      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update, level, level_progress, current_streak, longest_streak, badges FROM leaderboard WHERE classe = ? ORDER BY total_points DESC, last_update DESC'
+    ).bind(classe).all();
+
+    let currentRank = 1;
+    const users = (results || []).map((user: any, index: number) => {
+      if (index > 0) {
+        const prevPoints = (results[index - 1] as any).total_points;
+        if (user.total_points !== prevPoints) {
+          currentRank = index + 1;
+        }
+      }
+
+      const levelInfo = calculateLevel(user.total_points || 0);
+      const badges = user.badges ? JSON.parse(user.badges) : [];
+
+      return {
+        rank: currentRank,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        classe: user.classe || '',
+        totalPoints: user.total_points || 0,
+        actionsCount: user.actions_count || 0,
+        lastUpdate: user.last_update || '',
+        level: user.level || levelInfo.level,
+        levelProgress: user.level_progress !== null ? user.level_progress : levelInfo.progress,
+        levelName: levelInfo.levelName,
+        currentStreak: user.current_streak || 0,
+        longestStreak: user.longest_streak || 0,
+        badges: badges,
+      };
+    });
+
+    return jsonResponse(users);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /leaderboard/monthly - Récupère le classement mensuel (points gagnés ce mois)
+ */
+async function getMonthlyLeaderboard(env: Env): Promise<Response> {
+  try {
+    await ensureLeaderboardGamificationColumns(env);
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+    const startOfMonthStr = startOfMonth.toISOString();
+
+    // Calculer les points gagnés ce mois pour chaque étudiant
+    const { results: actions } = await env.DB.prepare(
+      `SELECT email, SUM(points) as monthly_points 
+       FROM actions 
+       WHERE status = 'validated' 
+       AND validated_at >= ? 
+       GROUP BY email`
+    ).bind(startOfMonthStr).all() as any;
+
+    // Récupérer les infos des étudiants
+    const { results: students } = await env.DB.prepare(
+      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update, level, level_progress, current_streak, longest_streak, badges FROM leaderboard'
+    ).all();
+
+    // Combiner les données
+    const monthlyData = (students || []).map((student: any) => {
+      const monthlyAction = (actions || []).find((a: any) => a.email === student.email);
+      return {
+        ...student,
+        monthlyPoints: monthlyAction?.monthly_points || 0,
+      };
+    });
+
+    // Trier par points mensuels
+    monthlyData.sort((a: any, b: any) => (b.monthlyPoints || 0) - (a.monthlyPoints || 0));
+
+    let currentRank = 1;
+    const users = monthlyData.map((user: any, index: number) => {
+      if (index > 0) {
+        const prevPoints = monthlyData[index - 1].monthlyPoints;
+        if (user.monthlyPoints !== prevPoints) {
+          currentRank = index + 1;
+        }
+      }
+
+      const levelInfo = calculateLevel(user.total_points || 0);
+      const badges = user.badges ? JSON.parse(user.badges) : [];
+
+      return {
+        rank: currentRank,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        classe: user.classe || '',
+        totalPoints: user.total_points || 0,
+        monthlyPoints: user.monthlyPoints || 0,
+        actionsCount: user.actions_count || 0,
+        lastUpdate: user.last_update || '',
+        level: user.level || levelInfo.level,
+        levelProgress: user.level_progress !== null ? user.level_progress : levelInfo.progress,
+        levelName: levelInfo.levelName,
+        currentStreak: user.current_streak || 0,
+        longestStreak: user.longest_streak || 0,
+        badges: badges,
+      };
+    });
+
+    return jsonResponse(users);
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
+ * GET /leaderboard/student/:email/stats - Stats détaillées d'un étudiant
+ */
+async function getStudentStats(env: Env, email: string): Promise<Response> {
+  try {
+    await ensureLeaderboardGamificationColumns(env);
+    
+    // Récupérer les infos de l'étudiant
+    const student = await env.DB.prepare(
+      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update, level, level_progress, current_streak, longest_streak, badges, last_action_date FROM leaderboard WHERE email = ?'
+    ).bind(email.toLowerCase()).first() as any;
+
+    if (!student) {
+      return jsonResponse({ error: 'Student not found' }, 404);
+    }
+
+    // Calculer le rang global
+    const { results: allStudents } = await env.DB.prepare(
+      'SELECT email, total_points FROM leaderboard ORDER BY total_points DESC, last_update DESC'
+    ).all();
+
+    let globalRank = 1;
+    for (let i = 0; i < allStudents.length; i++) {
+      if ((allStudents[i] as any).email === email.toLowerCase()) {
+        if (i > 0 && (allStudents[i - 1] as any).total_points === student.total_points) {
+          globalRank = (allStudents.findIndex((s: any) => s.email === email.toLowerCase() && s.total_points < student.total_points) + 1) || 1;
+        } else {
+          globalRank = i + 1;
+        }
+        break;
+      }
+    }
+
+    // Calculer le rang dans la classe
+    let classRank = 1;
+    if (student.classe) {
+      const { results: classStudents } = await env.DB.prepare(
+        'SELECT email, total_points FROM leaderboard WHERE classe = ? ORDER BY total_points DESC, last_update DESC'
+      ).bind(student.classe).all();
+
+      for (let i = 0; i < classStudents.length; i++) {
+        if ((classStudents[i] as any).email === email.toLowerCase()) {
+          classRank = i + 1;
+          break;
+        }
+      }
+    }
+
+    // Calculer les stats de niveau
+    const levelInfo = calculateLevel(student.total_points || 0);
+    
+    // Calculer le streak
+    const streak = await calculateStreak(env, email.toLowerCase());
+
+    // Récupérer les badges
+    const badges = student.badges ? JSON.parse(student.badges) : [];
+
+    // Récupérer les actions récentes pour la progression
+    const { results: recentActions } = await env.DB.prepare(
+      `SELECT points, validated_at 
+       FROM actions 
+       WHERE email = ? AND status = 'validated' 
+       ORDER BY validated_at DESC 
+       LIMIT 10`
+    ).bind(email.toLowerCase()).all();
+
+    return jsonResponse({
+      student: {
+        firstName: student.first_name,
+        lastName: student.last_name,
+        email: student.email,
+        classe: student.classe || '',
+        totalPoints: student.total_points || 0,
+        actionsCount: student.actions_count || 0,
+        lastUpdate: student.last_update || '',
+      },
+      ranks: {
+        global: globalRank,
+        class: classRank,
+      },
+      level: {
+        current: student.level || levelInfo.level,
+        progress: student.level_progress !== null ? student.level_progress : levelInfo.progress,
+        name: levelInfo.levelName,
+        nextLevelPoints: levelInfo.nextLevelPoints,
+      },
+      streak: {
+        current: student.current_streak || streak.current,
+        longest: student.longest_streak || streak.longest,
+      },
+      badges: badges,
+      recentActions: recentActions || [],
+    });
+  } catch (error: any) {
+    return jsonResponse({ error: error.message }, 500);
+  }
+}
+
+/**
  * GET /leaderboard/check?email=xxx - Vérifie si un étudiant existe dans la base de données
  */
 async function checkStudentExists(env: Env, email: string): Promise<Response> {
   try {
+    await ensureLeaderboardGamificationColumns(env);
     const student = await env.DB.prepare(
-      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update FROM leaderboard WHERE email = ?'
+      'SELECT id, first_name, last_name, email, classe, total_points, actions_count, last_update, level, level_progress, current_streak, longest_streak, badges FROM leaderboard WHERE email = ?'
     ).bind(email.toLowerCase()).first() as any;
 
     if (student) {
@@ -825,29 +1258,96 @@ async function checkAutomationsAndValidate(env: Env, actionId: string, email: st
                WHERE id = ?`
             ).bind(points, actionId).run();
             
-            // Update leaderboard
+            // Update leaderboard with gamification
+            await ensureLeaderboardGamificationColumns(env);
             const existing = await env.DB.prepare(
-              'SELECT id FROM leaderboard WHERE email = ?'
+              'SELECT id, total_points, actions_count FROM leaderboard WHERE email = ?'
             ).bind(email).first() as any;
+            
+            let newTotalPoints: number;
+            let newActionsCount: number;
+
+            if (existing) {
+              newTotalPoints = (existing.total_points || 0) + points;
+              newActionsCount = (existing.actions_count || 0) + 1;
+            } else {
+              newTotalPoints = points;
+              newActionsCount = 1;
+            }
+
+            // Calculer le niveau et la progression
+            const levelInfo = calculateLevel(newTotalPoints);
+
+            // Calculer le streak
+            const today = new Date().toISOString().split('T')[0];
+            const streak = await calculateStreak(env, email);
+            
+            // Calculer le rang approximatif
+            const { results: allStudents } = await env.DB.prepare(
+              'SELECT email, total_points FROM leaderboard ORDER BY total_points DESC, last_update DESC'
+            ).all();
+            
+            let estimatedRank = allStudents.length + 1;
+            for (let i = 0; i < allStudents.length; i++) {
+              if ((allStudents[i] as any).total_points < newTotalPoints) {
+                estimatedRank = i + 1;
+                break;
+              }
+            }
+
+            // Vérifier et attribuer badges
+            const badges = await checkAndAwardBadges(
+              env,
+              email,
+              newTotalPoints,
+              newActionsCount,
+              estimatedRank,
+              levelInfo.level,
+              streak.current
+            );
+
+            const emailParts = email.split('@')[0].split('.');
             
             if (existing) {
               await env.DB.prepare(
                 `UPDATE leaderboard 
-                 SET total_points = total_points + ?,
-                     actions_count = actions_count + 1,
+                 SET total_points = ?,
+                     actions_count = ?,
+                     level = ?,
+                     level_progress = ?,
+                     current_streak = ?,
+                     longest_streak = ?,
+                     last_action_date = ?,
+                     badges = ?,
                      last_update = CURRENT_TIMESTAMP
                  WHERE email = ?`
-              ).bind(points, email).run();
+              ).bind(
+                newTotalPoints,
+                newActionsCount,
+                levelInfo.level,
+                levelInfo.progress,
+                streak.current,
+                streak.longest,
+                today,
+                JSON.stringify(badges),
+                email
+              ).run();
             } else {
-              const emailParts = email.split('@')[0].split('.');
               await env.DB.prepare(
-                `INSERT INTO leaderboard (email, first_name, last_name, total_points, actions_count, last_update)
-                 VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`
+                `INSERT INTO leaderboard (email, first_name, last_name, total_points, actions_count, level, level_progress, current_streak, longest_streak, last_action_date, badges, last_update)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
               ).bind(
                 email,
                 emailParts[0] || 'User',
                 emailParts[1] || '',
-                points
+                newTotalPoints,
+                newActionsCount,
+                levelInfo.level,
+                levelInfo.progress,
+                streak.current,
+                streak.longest,
+                today,
+                JSON.stringify(badges)
               ).run();
             }
             
@@ -1042,8 +1542,10 @@ async function validateAction(env: Env, request: Request): Promise<Response> {
       body.actionId
     ).run();
 
-    // Si validé, mettre à jour le leaderboard
+    // Si validé, mettre à jour le leaderboard avec gamification
     if (body.decision === 'validated') {
+      await ensureLeaderboardGamificationColumns(env);
+      
       // Vérifier si l'utilisateur existe
       const existing = await env.DB.prepare(
         'SELECT id, total_points, actions_count FROM leaderboard WHERE email = ?'
@@ -1053,21 +1555,94 @@ async function validateAction(env: Env, request: Request): Promise<Response> {
       const firstName = emailParts[0] || 'User';
       const lastName = emailParts[1] || '';
 
+      let newTotalPoints: number;
+      let newActionsCount: number;
+
       if (existing) {
-        // Mettre à jour l'utilisateur existant
+        newTotalPoints = (existing.total_points || 0) + (body.points || 0);
+        newActionsCount = (existing.actions_count || 0) + 1;
+      } else {
+        newTotalPoints = body.points || 0;
+        newActionsCount = 1;
+      }
+
+      // Calculer le niveau et la progression
+      const levelInfo = calculateLevel(newTotalPoints);
+
+      // Calculer le streak
+      const today = new Date().toISOString().split('T')[0];
+      const streak = await calculateStreak(env, action.email);
+      
+      // Mettre à jour last_action_date si action validée aujourd'hui
+      const lastActionDate = today;
+
+      // Calculer le rang pour les badges (approximatif, sera recalculé lors de la prochaine requête)
+      const { results: allStudents } = await env.DB.prepare(
+        'SELECT email, total_points FROM leaderboard ORDER BY total_points DESC, last_update DESC'
+      ).all();
+      
+      let estimatedRank = allStudents.length + 1;
+      for (let i = 0; i < allStudents.length; i++) {
+        if ((allStudents[i] as any).total_points < newTotalPoints) {
+          estimatedRank = i + 1;
+          break;
+        }
+      }
+
+      // Vérifier et attribuer badges
+      const badges = await checkAndAwardBadges(
+        env,
+        action.email,
+        newTotalPoints,
+        newActionsCount,
+        estimatedRank,
+        levelInfo.level,
+        streak.current
+      );
+
+      if (existing) {
+        // Mettre à jour l'utilisateur existant avec gamification
         await env.DB.prepare(
           `UPDATE leaderboard 
-           SET total_points = total_points + ?, 
-               actions_count = actions_count + 1,
+           SET total_points = ?, 
+               actions_count = ?,
+               level = ?,
+               level_progress = ?,
+               current_streak = ?,
+               longest_streak = ?,
+               last_action_date = ?,
+               badges = ?,
                last_update = CURRENT_TIMESTAMP
            WHERE email = ?`
-        ).bind(body.points || 0, action.email).run();
+        ).bind(
+          newTotalPoints,
+          newActionsCount,
+          levelInfo.level,
+          levelInfo.progress,
+          streak.current,
+          streak.longest,
+          lastActionDate,
+          JSON.stringify(badges),
+          action.email
+        ).run();
       } else {
-        // Créer un nouvel utilisateur
+        // Créer un nouvel utilisateur avec gamification
         await env.DB.prepare(
-          `INSERT INTO leaderboard (email, first_name, last_name, total_points, actions_count, last_update)
-           VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP)`
-        ).bind(action.email, firstName, lastName, body.points || 0).run();
+          `INSERT INTO leaderboard (email, first_name, last_name, total_points, actions_count, level, level_progress, current_streak, longest_streak, last_action_date, badges, last_update)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+        ).bind(
+          action.email,
+          firstName,
+          lastName,
+          newTotalPoints,
+          newActionsCount,
+          levelInfo.level,
+          levelInfo.progress,
+          streak.current,
+          streak.longest,
+          lastActionDate,
+          JSON.stringify(badges)
+        ).run();
       }
     }
 
@@ -2256,6 +2831,44 @@ export default {
         });
       }
 
+      // Route: GET /leaderboard/levels - Leaderboard avec niveaux calculés
+      if (url.pathname === '/leaderboard/levels' && request.method === 'GET') {
+        const response = await getLeaderboard(env);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /leaderboard/class/:classe - Classement par classe
+      if (url.pathname.startsWith('/leaderboard/class/') && request.method === 'GET') {
+        const classe = decodeURIComponent(url.pathname.split('/')[3]);
+        const response = await getLeaderboardByClass(env, classe);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /leaderboard/monthly - Classement mensuel
+      if (url.pathname === '/leaderboard/monthly' && request.method === 'GET') {
+        const response = await getMonthlyLeaderboard(env);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: GET /leaderboard/student/:email/stats - Stats détaillées d'un étudiant
+      if (url.pathname.match(/^\/leaderboard\/student\/.+\/stats$/) && request.method === 'GET') {
+        const email = decodeURIComponent(url.pathname.split('/')[3]);
+        const response = await getStudentStats(env, email);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
       // Route: DELETE /actions/:id - DOIT être AVANT les autres routes /actions/*
       // Vérifier que ce n'est pas une route spéciale comme /actions/all, /actions/validate, etc.
       if (request.method === 'DELETE' && 
@@ -2504,6 +3117,15 @@ export default {
       // Route: GET /api/analytics/insights
       if (url.pathname === '/api/analytics/insights' && request.method === 'GET') {
         const response = await getAnalyticsInsights(env);
+        return new Response(response.body, {
+          ...response,
+          headers: { ...response.headers, ...corsHeaders() },
+        });
+      }
+
+      // Route: POST /api/external/add-points - Ajouter des points depuis un service externe
+      if (url.pathname === '/api/external/add-points' && request.method === 'POST') {
+        const response = await addExternalPoints(env, request);
         return new Response(response.body, {
           ...response,
           headers: { ...response.headers, ...corsHeaders() },

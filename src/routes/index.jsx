@@ -34,6 +34,7 @@ const Analytics = lazy(() => import('../pages/Analytics'));
 const GoogleOAuthCallback = lazy(() => import('../pages/GoogleOAuthCallback'));
 const GoogleSheetsSetup = lazy(() => import('../pages/GoogleSheetsSetup'));
 const AssociationManagementPage = lazy(() => import('../pages/AssociationManagementPage'));
+const AssociationDetailPage = lazy(() => import('../pages/AssociationDetailPage'));
 const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
@@ -79,6 +80,14 @@ export function createStudentRoutes(school) {
       element: (
         <SchoolAuth school={school}>
           <AssociationsPage school={school} />
+        </SchoolAuth>
+      )
+    },
+    {
+      path: `${schoolPath}/associations/:id`,
+      element: (
+        <SchoolAuth school={school}>
+          <AssociationDetailPage school={school} />
         </SchoolAuth>
       )
     },
